@@ -198,3 +198,119 @@ graph BT
     Framework[프레임워크 만들기] --> Portfolio
     LLMHow[LLM 활용하기] --> Framework
 ```
+
+---
+
+### 지윤's Why Tree
+
+flowchart TB
+
+    %% ROOT
+    A[Career or Next Step in Life]
+
+    %% LEVEL 1
+    A --> B[Stay]
+    A --> C[Change Companies]
+    A --> D[Change Jobs]
+    A --> E[Study More]
+    A --> F[Rest]
+
+    %% --------------------
+    %% STAY
+    %% --------------------
+    B --> B1[Fulfillment]
+    B --> B2[Emptiness]
+    B --> B3[Need Growth]
+    B --> B4[Work Life Balance]
+
+    %% --------------------
+    %% CHANGE COMPANIES
+    %% --------------------
+    C --> C1[Korean Company]
+    C --> C2[Global Company]
+    C --> C3[Startup]
+    C --> C4[Better Culture]
+    C --> C5[Higher Pay]
+
+    %% --------------------
+    %% CHANGE JOBS
+    %% --------------------
+    D --> D1[Corporate Role]
+    D --> D2[Creator or Influencer]
+    D --> D3[Entrepreneur]
+    D --> D4[Stay at Home Parent]
+    D --> D5[Freelancer]
+
+    %% CREATOR DETAILS
+    D2 --> D21[Fashion or Beauty]
+    D2 --> D22[Marriage]
+    D2 --> D23[Food]
+    D2 --> D24[Parenting]
+    D2 --> D25[Travel]
+    D2 --> D26[Lifestyle]
+
+    %% --------------------
+    %% STUDY
+    %% --------------------
+    E --> E1[Law School]
+    E --> E2[PhD]
+    E --> E3[MBA]
+    E --> E4[Certification]
+    E --> E5[Skill Learning]
+
+    %% --------------------
+    %% REST
+    %% --------------------
+    F --> F1[World Travel]
+    F --> F2[Meditation]
+    F --> F3[Burnout Recovery]
+    F --> F4[Health Reset]
+    F --> F5[Reflection]
+
+    %% --------------------
+    %% FINAL WHY
+    %% --------------------
+    B1 --> G
+    B2 --> G
+    B3 --> G
+    B4 --> G
+    C1 --> G
+    C2 --> G
+    C3 --> G
+    C4 --> G
+    C5 --> G
+    D1 --> G
+    D2 --> G
+    D3 --> G
+    D4 --> G
+    D5 --> G
+    E1 --> G
+    E2 --> G
+    E3 --> G
+    E4 --> G
+    E5 --> G
+    F1 --> G
+    F2 --> G
+    F3 --> G
+    F4 --> G
+    F5 --> G
+
+    G[Meaningful Sustainable Authentic Life]
+
+    %% --------------------
+    %% COLORS
+    %% --------------------
+    classDef stay fill:#E3F2FD,stroke:#1E88E5,stroke-width:1px;
+    classDef company fill:#E8F5E9,stroke:#43A047,stroke-width:1px;
+    classDef job fill:#FFF3E0,stroke:#FB8C00,stroke-width:1px;
+    classDef study fill:#F3E5F5,stroke:#8E24AA,stroke-width:1px;
+    classDef rest fill:#FCE4EC,stroke:#D81B60,stroke-width:1px;
+    classDef root fill:#ECEFF1,stroke:#37474F,stroke-width:2px;
+
+    class A root;
+    class B,B1,B2,B3,B4 stay;
+    class C,C1,C2,C3,C4,C5 company;
+    class D,D1,D2,D3,D4,D5,D21,D22,D23,D24,D25,D26 job;
+    class E,E1,E2,E3,E4,E5 study;
+    class F,F1,F2,F3,F4,F5 rest;
+    class G root;
