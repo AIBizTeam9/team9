@@ -203,38 +203,35 @@ graph BT
 
 ### 지윤's Why Tree
 
+## 지윤's Why Tree
+
+```mermaid
 graph TD
-    %% 1. Top node
     TOP["Career or Next Step in Life"]
 
-    %% 2. First layer
     V1["Stay"]
     V2["Change Companies"]
     V3["Change Jobs"]
     V4["Study More"]
     V5["Rest"]
 
-    %% 3. Stay branch
     S1["Fulfillment"]
     S2["Emptiness"]
     S3["Need Growth"]
     S4["Work Life Balance"]
 
-    %% 4. Change company branch
     C1["Korean Company"]
     C2["Global Company"]
     C3["Startup"]
     C4["Better Culture"]
     C5["Higher Compensation"]
 
-    %% 5. Change jobs branch
     J1["Corporate Role"]
     J2["Creator or Influencer"]
     J3["Entrepreneur"]
     J4["Stay at Home Parent"]
     J5["Freelancer or Independent Work"]
 
-    %% 6. Creator details
     J2_1["Fashion or Beauty"]
     J2_2["Marriage"]
     J2_3["Food"]
@@ -242,38 +239,32 @@ graph TD
     J2_5["Travel"]
     J2_6["Lifestyle"]
 
-    %% 7. Study more branch
     E1["Law School"]
     E2["PhD"]
     E3["MBA"]
     E4["Professional Certification"]
     E5["Skill Based Learning"]
 
-    %% 8. Rest branch
     R1["World Travel"]
     R2["Meditation"]
     R3["Burnout Recovery"]
     R4["Health Reset"]
     R5["Time to Reflect"]
 
-    %% 9. Middle why layer
     W1["Meaning"]
     W2["Growth"]
     W3["Stability"]
     W4["Freedom"]
     W5["Authenticity"]
 
-    %% 10. Final node
     FINAL["Meaningful Sustainable Authentic Life"]
 
-    %% 11. Top connections
     TOP --- V1
     TOP --- V2
     TOP --- V3
     TOP --- V4
     TOP --- V5
 
-    %% 12. Branch details
     V1 --- S1
     V1 --- S2
     V1 --- S3
@@ -310,7 +301,6 @@ graph TD
     V5 --- R4
     V5 --- R5
 
-    %% 13. Deeper why mapping
     S1 --- W1
     S2 --- W5
     S3 --- W2
@@ -340,14 +330,12 @@ graph TD
     R4 --- W3
     R5 --- W5
 
-    %% 14. Final convergence
     W1 --- FINAL
     W2 --- FINAL
     W3 --- FINAL
     W4 --- FINAL
     W5 --- FINAL
 
-    %% 15. Styling
     style TOP fill:#F5F5F5,stroke:#BDBDBD,stroke-width:2px
     style FINAL fill:#F5F5F5,stroke:#BDBDBD,stroke-width:2px
 
@@ -357,48 +345,9 @@ graph TD
     style V4 fill:#F3E5F5,stroke:#BA68C8,stroke-width:2px
     style V5 fill:#FCE4EC,stroke:#F06292,stroke-width:2px
 
-    style S1 fill:#E3F2FD,stroke:#90CAF9
-    style S2 fill:#E3F2FD,stroke:#90CAF9
-    style S3 fill:#E3F2FD,stroke:#90CAF9
-    style S4 fill:#E3F2FD,stroke:#90CAF9
-
-    style C1 fill:#E8F5E9,stroke:#A5D6A7
-    style C2 fill:#E8F5E9,stroke:#A5D6A7
-    style C3 fill:#E8F5E9,stroke:#A5D6A7
-    style C4 fill:#E8F5E9,stroke:#A5D6A7
-    style C5 fill:#E8F5E9,stroke:#A5D6A7
-
-    style J1 fill:#FFF3E0,stroke:#FFCC80
-    style J2 fill:#FFF3E0,stroke:#FB8C00,stroke-width:3px,color:#E65100
-    style J3 fill:#FFF3E0,stroke:#FFCC80
-    style J4 fill:#FFF3E0,stroke:#FFCC80
-    style J5 fill:#FFF3E0,stroke:#FFCC80
-
-    style J2_1 fill:#FFF8E1,stroke:#FFD54F
-    style J2_2 fill:#FFF8E1,stroke:#FFD54F
-    style J2_3 fill:#FFF8E1,stroke:#FFD54F
-    style J2_4 fill:#FFF8E1,stroke:#FFD54F
-    style J2_5 fill:#FFF8E1,stroke:#FFD54F
-    style J2_6 fill:#FFF8E1,stroke:#FFD54F
-
-    style E1 fill:#F3E5F5,stroke:#CE93D8
-    style E2 fill:#F3E5F5,stroke:#CE93D8
-    style E3 fill:#F3E5F5,stroke:#CE93D8
-    style E4 fill:#F3E5F5,stroke:#CE93D8
-    style E5 fill:#F3E5F5,stroke:#CE93D8
-
-    style R1 fill:#FCE4EC,stroke:#F8BBD0
-    style R2 fill:#FCE4EC,stroke:#F8BBD0
-    style R3 fill:#FCE4EC,stroke:#F8BBD0
-    style R4 fill:#FCE4EC,stroke:#F8BBD0
-    style R5 fill:#FCE4EC,stroke:#F8BBD0
-
     style W1 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W2 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W3 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W4 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W5 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
-
-    %% 16. Highlight main path lines
-    linkStyle 0,1,2,3,4 stroke:#B0BEC5,stroke-width:2px
-    linkStyle 37,38,39,40,41 stroke:#BDBDBD,stroke-width:3px
+```
