@@ -5,7 +5,7 @@
 ### 동근's Why Tree
 ```mermaid
 graph TD
-    %% 1. 노드 정의
+    %% 1. 노드 정의 (특수문자 방지를 위해 모두 큰따옴표 처리)
     TOP["행복하고 균형잡힌 삶"]
     
     V1["자아실현 (내적 성장/성취)"]
@@ -55,25 +55,25 @@ graph TD
     TOP --- V3
     TOP --- V4
     
-    %% Career 연결 (Link 4, 5, 6, 7)
+    %% Career 연결 (Idx: 4, 5, 6, 7)
     V1 --- CAREER
     V2 --- CAREER
     V3 --- CAREER
     V4 --- CAREER
     
-    %% Side Hustle 연결 (Link 8, 9)
+    %% Side Hustle 연결 (Idx: 8, 9)
     V2 --- SIDE
     V3 --- SIDE
     
-    %% Investment 연결 (Link 10, 11)
+    %% Investment 연결 (Idx: 10, 11)
     V2 --- INVEST
     V4 --- INVEST
 
-    %% Hobby 연결 (Link 12, 13) - 가장 마지막에 연결하여 오른쪽으로 배치
+    %% Hobby 연결 (Idx: 12, 13)
     V1 --- HOBBY
     V4 --- HOBBY
     
-    %% Career 하위 수단 (Link 14, 15, 16)
+    %% Career 하위 수단 (Idx: 14, 15, 16)
     CAREER --- C1
     CAREER --- C2
     CAREER --- C3
@@ -95,8 +95,10 @@ graph TD
     I2 --- I2_1
     I2 --- I2_2
 
+    %% 네트워크와 KAIST 과정 연결 (강조 없음)
     C3 --- C1_2
 
+    %% 취미 상세 연결
     HOBBY --- H1
     HOBBY --- H2
     HOBBY --- H3
@@ -106,7 +108,7 @@ graph TD
     H2 --- C1_2
     H3 --- H3_1
 
-    %% 3. 스타일링
+    %% 3. 스타일링 (에러 방지를 위해 한글 주석 제거)
     style TOP fill:#F5F5F5,stroke:#D1D1D1
     style V1 fill:#FFF9F0,stroke:#FFECB3
     style V2 fill:#FFF9F0,stroke:#FFECB3
@@ -118,15 +120,9 @@ graph TD
     
     style CAREER fill:#E8F5E9,stroke:#81C784,stroke-width:3px,color:#2E7D32
 
-    %% 선 스타일 (4~7: 상위->Career / 14~16: Career->C1,C2,C3)
+    %% 선 스타일 (4~7: 상단 가치->Career / 14~16: Career->하위수단)
     linkStyle 4,5,6,7,14,15,16 stroke:#A5D6A7,stroke-width:3px
----
-
-### 석빈's Why Tree
-<p align="center">
-  <img src="Seokbin.png" alt="Seokbin's Why Tree" width="800">
-</p>
-
+```
 ---
 
 ### 석빈's Why Tree(테스트)
