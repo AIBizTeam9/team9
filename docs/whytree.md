@@ -203,8 +203,6 @@ graph BT
 
 ### 지윤's Why Tree
 
-## 지윤's Why Tree
-
 ```mermaid
 graph TD
     TOP["Career or Next Step in Life"]
