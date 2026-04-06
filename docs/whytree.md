@@ -125,7 +125,7 @@ graph TD
 ```
 ---
 
-### 석빈's Why Tree(테스트)
+### 석빈's Why Tree
 
 ```mermaid
 graph BT
