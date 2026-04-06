@@ -203,114 +203,202 @@ graph BT
 
 ### 지윤's Why Tree
 
-flowchart TB
+graph TD
+    %% 1. Top node
+    TOP["Career or Next Step in Life"]
 
-    %% ROOT
-    A[Career or Next Step in Life]
+    %% 2. First layer
+    V1["Stay"]
+    V2["Change Companies"]
+    V3["Change Jobs"]
+    V4["Study More"]
+    V5["Rest"]
 
-    %% LEVEL 1
-    A --> B[Stay]
-    A --> C[Change Companies]
-    A --> D[Change Jobs]
-    A --> E[Study More]
-    A --> F[Rest]
+    %% 3. Stay branch
+    S1["Fulfillment"]
+    S2["Emptiness"]
+    S3["Need Growth"]
+    S4["Work Life Balance"]
 
-    %% --------------------
-    %% STAY
-    %% --------------------
-    B --> B1[Fulfillment]
-    B --> B2[Emptiness]
-    B --> B3[Need Growth]
-    B --> B4[Work Life Balance]
+    %% 4. Change company branch
+    C1["Korean Company"]
+    C2["Global Company"]
+    C3["Startup"]
+    C4["Better Culture"]
+    C5["Higher Compensation"]
 
-    %% --------------------
-    %% CHANGE COMPANIES
-    %% --------------------
-    C --> C1[Korean Company]
-    C --> C2[Global Company]
-    C --> C3[Startup]
-    C --> C4[Better Culture]
-    C --> C5[Higher Pay]
+    %% 5. Change jobs branch
+    J1["Corporate Role"]
+    J2["Creator or Influencer"]
+    J3["Entrepreneur"]
+    J4["Stay at Home Parent"]
+    J5["Freelancer or Independent Work"]
 
-    %% --------------------
-    %% CHANGE JOBS
-    %% --------------------
-    D --> D1[Corporate Role]
-    D --> D2[Creator or Influencer]
-    D --> D3[Entrepreneur]
-    D --> D4[Stay at Home Parent]
-    D --> D5[Freelancer]
+    %% 6. Creator details
+    J2_1["Fashion or Beauty"]
+    J2_2["Marriage"]
+    J2_3["Food"]
+    J2_4["Parenting or Baby"]
+    J2_5["Travel"]
+    J2_6["Lifestyle"]
 
-    %% CREATOR DETAILS
-    D2 --> D21[Fashion or Beauty]
-    D2 --> D22[Marriage]
-    D2 --> D23[Food]
-    D2 --> D24[Parenting]
-    D2 --> D25[Travel]
-    D2 --> D26[Lifestyle]
+    %% 7. Study more branch
+    E1["Law School"]
+    E2["PhD"]
+    E3["MBA"]
+    E4["Professional Certification"]
+    E5["Skill Based Learning"]
 
-    %% --------------------
-    %% STUDY
-    %% --------------------
-    E --> E1[Law School]
-    E --> E2[PhD]
-    E --> E3[MBA]
-    E --> E4[Certification]
-    E --> E5[Skill Learning]
+    %% 8. Rest branch
+    R1["World Travel"]
+    R2["Meditation"]
+    R3["Burnout Recovery"]
+    R4["Health Reset"]
+    R5["Time to Reflect"]
 
-    %% --------------------
-    %% REST
-    %% --------------------
-    F --> F1[World Travel]
-    F --> F2[Meditation]
-    F --> F3[Burnout Recovery]
-    F --> F4[Health Reset]
-    F --> F5[Reflection]
+    %% 9. Middle why layer
+    W1["Meaning"]
+    W2["Growth"]
+    W3["Stability"]
+    W4["Freedom"]
+    W5["Authenticity"]
 
-    %% --------------------
-    %% FINAL WHY
-    %% --------------------
-    B1 --> G
-    B2 --> G
-    B3 --> G
-    B4 --> G
-    C1 --> G
-    C2 --> G
-    C3 --> G
-    C4 --> G
-    C5 --> G
-    D1 --> G
-    D2 --> G
-    D3 --> G
-    D4 --> G
-    D5 --> G
-    E1 --> G
-    E2 --> G
-    E3 --> G
-    E4 --> G
-    E5 --> G
-    F1 --> G
-    F2 --> G
-    F3 --> G
-    F4 --> G
-    F5 --> G
+    %% 10. Final node
+    FINAL["Meaningful Sustainable Authentic Life"]
 
-    G[Meaningful Sustainable Authentic Life]
+    %% 11. Top connections
+    TOP --- V1
+    TOP --- V2
+    TOP --- V3
+    TOP --- V4
+    TOP --- V5
 
-    %% --------------------
-    %% COLORS
-    %% --------------------
-    classDef stay fill:#E3F2FD,stroke:#1E88E5,stroke-width:1px;
-    classDef company fill:#E8F5E9,stroke:#43A047,stroke-width:1px;
-    classDef job fill:#FFF3E0,stroke:#FB8C00,stroke-width:1px;
-    classDef study fill:#F3E5F5,stroke:#8E24AA,stroke-width:1px;
-    classDef rest fill:#FCE4EC,stroke:#D81B60,stroke-width:1px;
-    classDef root fill:#ECEFF1,stroke:#37474F,stroke-width:2px;
+    %% 12. Branch details
+    V1 --- S1
+    V1 --- S2
+    V1 --- S3
+    V1 --- S4
 
-    class A root;
-    class B,B1,B2,B3,B4 stay;
-    class C,C1,C2,C3,C4,C5 company;
-    class D,D1,D2,D3,D4,D5,D21,D22,D23,D24,D25,D26 job;
-    class E,E1,E2,E3,E4,E5 study;
-    class F,F1,F2,F3,F4,F5 rest;
-    class G root;
+    V2 --- C1
+    V2 --- C2
+    V2 --- C3
+    V2 --- C4
+    V2 --- C5
+
+    V3 --- J1
+    V3 --- J2
+    V3 --- J3
+    V3 --- J4
+    V3 --- J5
+
+    J2 --- J2_1
+    J2 --- J2_2
+    J2 --- J2_3
+    J2 --- J2_4
+    J2 --- J2_5
+    J2 --- J2_6
+
+    V4 --- E1
+    V4 --- E2
+    V4 --- E3
+    V4 --- E4
+    V4 --- E5
+
+    V5 --- R1
+    V5 --- R2
+    V5 --- R3
+    V5 --- R4
+    V5 --- R5
+
+    %% 13. Deeper why mapping
+    S1 --- W1
+    S2 --- W5
+    S3 --- W2
+    S4 --- W3
+
+    C1 --- W3
+    C2 --- W4
+    C3 --- W2
+    C4 --- W5
+    C5 --- W3
+
+    J1 --- W3
+    J2 --- W5
+    J3 --- W4
+    J4 --- W1
+    J5 --- W4
+
+    E1 --- W2
+    E2 --- W2
+    E3 --- W3
+    E4 --- W3
+    E5 --- W2
+
+    R1 --- W4
+    R2 --- W1
+    R3 --- W3
+    R4 --- W3
+    R5 --- W5
+
+    %% 14. Final convergence
+    W1 --- FINAL
+    W2 --- FINAL
+    W3 --- FINAL
+    W4 --- FINAL
+    W5 --- FINAL
+
+    %% 15. Styling
+    style TOP fill:#F5F5F5,stroke:#BDBDBD,stroke-width:2px
+    style FINAL fill:#F5F5F5,stroke:#BDBDBD,stroke-width:2px
+
+    style V1 fill:#E3F2FD,stroke:#64B5F6,stroke-width:2px
+    style V2 fill:#E8F5E9,stroke:#81C784,stroke-width:2px
+    style V3 fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px
+    style V4 fill:#F3E5F5,stroke:#BA68C8,stroke-width:2px
+    style V5 fill:#FCE4EC,stroke:#F06292,stroke-width:2px
+
+    style S1 fill:#E3F2FD,stroke:#90CAF9
+    style S2 fill:#E3F2FD,stroke:#90CAF9
+    style S3 fill:#E3F2FD,stroke:#90CAF9
+    style S4 fill:#E3F2FD,stroke:#90CAF9
+
+    style C1 fill:#E8F5E9,stroke:#A5D6A7
+    style C2 fill:#E8F5E9,stroke:#A5D6A7
+    style C3 fill:#E8F5E9,stroke:#A5D6A7
+    style C4 fill:#E8F5E9,stroke:#A5D6A7
+    style C5 fill:#E8F5E9,stroke:#A5D6A7
+
+    style J1 fill:#FFF3E0,stroke:#FFCC80
+    style J2 fill:#FFF3E0,stroke:#FB8C00,stroke-width:3px,color:#E65100
+    style J3 fill:#FFF3E0,stroke:#FFCC80
+    style J4 fill:#FFF3E0,stroke:#FFCC80
+    style J5 fill:#FFF3E0,stroke:#FFCC80
+
+    style J2_1 fill:#FFF8E1,stroke:#FFD54F
+    style J2_2 fill:#FFF8E1,stroke:#FFD54F
+    style J2_3 fill:#FFF8E1,stroke:#FFD54F
+    style J2_4 fill:#FFF8E1,stroke:#FFD54F
+    style J2_5 fill:#FFF8E1,stroke:#FFD54F
+    style J2_6 fill:#FFF8E1,stroke:#FFD54F
+
+    style E1 fill:#F3E5F5,stroke:#CE93D8
+    style E2 fill:#F3E5F5,stroke:#CE93D8
+    style E3 fill:#F3E5F5,stroke:#CE93D8
+    style E4 fill:#F3E5F5,stroke:#CE93D8
+    style E5 fill:#F3E5F5,stroke:#CE93D8
+
+    style R1 fill:#FCE4EC,stroke:#F8BBD0
+    style R2 fill:#FCE4EC,stroke:#F8BBD0
+    style R3 fill:#FCE4EC,stroke:#F8BBD0
+    style R4 fill:#FCE4EC,stroke:#F8BBD0
+    style R5 fill:#FCE4EC,stroke:#F8BBD0
+
+    style W1 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
+    style W2 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
+    style W3 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
+    style W4 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
+    style W5 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
+
+    %% 16. Highlight main path lines
+    linkStyle 0,1,2,3,4 stroke:#B0BEC5,stroke-width:2px
+    linkStyle 37,38,39,40,41 stroke:#BDBDBD,stroke-width:3px
