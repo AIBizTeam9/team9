@@ -1,4 +1,4 @@
-<h1 align="center">Team 9 Why Tree</h1>
+<h1 align="center">WHYTREE.md</h1>
 
 ---
 
