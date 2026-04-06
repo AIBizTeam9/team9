@@ -3,6 +3,7 @@
 ---
 
 ### 동근's Why Tree
+```mermaid
 graph TD
     %% 1. 노드 정의
     TOP["행복하고 균형잡힌 삶"]
