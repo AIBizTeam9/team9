@@ -349,3 +349,49 @@ graph TD
     style W4 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W5 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
 ```
+
+---
+
+### 재림's Why Tree
+```mermaid
+graph BT
+mindmap
+  root((커리어 (Next step)))
+    ::icon(fa fa-rocket)
+     취미
+        술토크
+        운동
+            체력증진
+            헬스
+            자세교정
+    AI utilization
+        Innovative AI Service discovery
+        Writing tool creation
+        Vibe coding
+        Purpose-type app creation
+    이직 (고민)
+        ::icon(fa fa-think)
+        홍보?
+        일반기업의 단점 (기대공정)
+            X Rush hour (9-6)
+            자유로움 X
+            다채로운 경험 X
+            사무실 출근
+    기자
+        ::icon(fa fa-pen-nib)
+        네트워킹
+        공부
+            주식
+                How to find the next hidden gem?
+            산업
+                반도체
+                    삼성
+                    SK
+                조선
+                    한화
+                    HD현대
+            영어
+                외신 follow-up
+                AI와 공부
+                    ChatGPT 에잇
+                    더 좋은 방법 연구
