@@ -1,8 +1,8 @@
 <h1 align="center">WHYTREE.md</h1>
 
-----
+---
 
-### 1. 동근's Why Tree
+### 동근's Why Tree
 ```mermaid
 graph TD
     %% 1. 노드 정의 (특수문자 방지를 위해 모두 큰따옴표 처리)
@@ -125,7 +125,7 @@ graph TD
 ```
 ---
 
-### 2. 석빈's Why Tree
+### 석빈's Why Tree
 
 ```mermaid
 graph BT
@@ -201,7 +201,7 @@ graph BT
 
 ---
 
-### 3. 지윤's Why Tree
+### 지윤's Why Tree
 
 ```mermaid
 graph TD
@@ -397,7 +397,7 @@ graph TD
     Hobby --> Reels[릴스 시청]
     Reels --> Ent[엔터테인먼트]
     Ent --> Fashion[옷/패션]
-    TV[콘텐츠 시청] --> Ent
+    TV[TV/드라마] --> Ent
 
     %% Feedback loops from the drawing
     Disadvantage -.-> Value
