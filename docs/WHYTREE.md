@@ -349,3 +349,62 @@ graph TD
     style W4 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
     style W5 fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
 ```
+
+---
+
+### 재림's Why Tree
+```mermaid
+graph TD
+    %% Main Root
+    Root[커리어 Next step]
+
+    %% Level 1
+    Root --> Hobby[취미]
+    Root --> AI[AI utilization]
+    Root --> Career[이직 고민]
+    Root --> Reporter[기자]
+
+    %% Hobby Branch
+    Hobby --> Alcohol[술토크]
+    Hobby --> Workout[운동]
+    Workout --> Health1[체력증진]
+    Workout --> Health2[헬스]
+    Workout --> Health3[자세교정]
+
+    %% AI Branch
+    AI --> AI1[Innovative AI Service discovery]
+    AI --> AI2[Writing tool creation]
+    AI --> AI3[Vibe coding]
+    AI --> AI4[Purpose-type app creation]
+
+    %% Career Branch
+    Career --> PR[홍보?]
+    Career --> Bad[일반기업의 단점 기대공정]
+    Bad --> B1[X Rush hour 9-6]
+    Bad --> B2[자유로움 X]
+    Bad --> B3[다채로운 경험 X]
+    Bad --> B4[사무실 출근]
+
+    %% Reporter Branch
+    Reporter --> Net[네트워킹]
+    Reporter --> Study[공부]
+    
+    Study --> Stock[주식]
+    Stock --> Gem[How to find the next hidden gem?]
+    
+    Study --> Industry[산업]
+    Industry --> Semi[반도체]
+    Semi --> Samsung[삼성]
+    Semi --> SK[SK]
+    Industry --> Ship[조선]
+    Ship --> Hanwha[한화]
+    Ship --> HD[HD현대]
+    
+    Study --> English[영어]
+    English --> Follow[외신 follow-up]
+    English --> AIStudy[AI와 공부]
+    AIStudy --> GPT[ChatGPT 에잇]
+    AIStudy --> Research[더 좋은 방법 연구]
+
+    %% Styling to match the look
+    style Root fill:#f9f,stroke:#333,stroke-width:2px
