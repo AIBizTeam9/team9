@@ -1,6 +1,6 @@
 <h1 align="center">WHYTREE.md</h1>
 
----
+----
 
 ### 1. 동근's Why Tree
 ```mermaid
