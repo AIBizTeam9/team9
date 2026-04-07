@@ -397,7 +397,7 @@ graph TD
     Hobby --> Reels[릴스 시청]
     Reels --> Ent[엔터테인먼트]
     Ent --> Fashion[옷/패션]
-    TV[TV/드라마] --> Ent
+    TV[콘텐츠 시청] --> Ent
 
     %% Feedback loops from the drawing
     Disadvantage -.-> Value
