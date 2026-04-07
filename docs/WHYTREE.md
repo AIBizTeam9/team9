@@ -356,7 +356,7 @@ graph TD
 ```mermaid
 graph TD
     %% Main Goal
-    NextStep[커리어 Next step] --> Logic[고급]
+    NextStep[커리어 Next step] --> Logic[조급]
     Logic --> Value[가치판단]
 
     %% Right Side: AI & Self Development
