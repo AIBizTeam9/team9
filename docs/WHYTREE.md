@@ -2,7 +2,7 @@
 
 ---
 
-### 동근's Why Tree
+### 1. 동근's Why Tree
 ```mermaid
 graph TD
     %% 1. 노드 정의 (특수문자 방지를 위해 모두 큰따옴표 처리)
@@ -125,7 +125,7 @@ graph TD
 ```
 ---
 
-### 석빈's Why Tree
+### 2. 석빈's Why Tree
 
 ```mermaid
 graph BT
@@ -201,7 +201,7 @@ graph BT
 
 ---
 
-### 지윤's Why Tree
+### 3. 지윤's Why Tree
 
 ```mermaid
 graph TD
