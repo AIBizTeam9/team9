@@ -1,4 +1,4 @@
-# Team 9 Manifest
+# Team 9 Manifesto
 ## AI 기반 자기이해 및 커리어 탐색 서비스
 
 > “사람들이 더 나은 커리어 (Next Stage in Life) 결정을 내리기 위해, 먼저 자기 자신을 더 잘 이해할 수 있도록 돕는다.”
