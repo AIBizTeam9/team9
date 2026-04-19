@@ -1,8 +1,40 @@
+# Node / Next.js
 node_modules/
 .next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env*.local
+
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
-.env
-.env.local
-#
+*.pyo
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deploy / tooling
+.vercel/
+.netlify/
+.claude/
