@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VS Code + Git + GitHub Copilot 설치 가이드</title>
+    <title>바이브 코딩 시작 가이드 - VS Code + Git + GitHub Copilot</title>
     <style>
         * {
             margin: 0;
@@ -38,14 +38,40 @@
         .hero p {
             font-size: 1.15em;
             color: #8b949e;
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
+        }
+
+        .hero .subtitle {
+            font-size: 0.95em;
+            color: #6e7681;
+            margin-top: 8px;
         }
 
         .container {
             max-width: 860px;
             margin: 0 auto;
             padding: 40px 20px 80px;
+        }
+
+        .intro-box {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(121, 192, 255, 0.04));
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 36px;
+        }
+
+        .intro-box h2 {
+            color: #79c0ff;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+        }
+
+        .intro-box p {
+            color: #c9d1d9;
+            font-size: 1em;
+            margin-bottom: 8px;
         }
 
         .step {
@@ -89,6 +115,12 @@
             margin-right: 8px;
         }
 
+        .step h3 {
+            font-size: 1.1em;
+            color: #e6edf3;
+            margin: 20px 0 10px;
+        }
+
         .step p, .step li {
             color: #c9d1d9;
             font-size: 1em;
@@ -129,6 +161,11 @@
             color: #fff;
         }
 
+        .btn-github {
+            background: #238636;
+            color: #fff;
+        }
+
         .code-block {
             background: #0d1117;
             border: 1px solid #30363d;
@@ -157,6 +194,10 @@
             color: #a5d6ff;
         }
 
+        .code-block .flag {
+            color: #ffa657;
+        }
+
         .highlight-box {
             background: rgba(56, 139, 253, 0.1);
             border: 1px solid rgba(56, 139, 253, 0.4);
@@ -175,6 +216,11 @@
             border-color: rgba(35, 134, 54, 0.4);
         }
 
+        .highlight-box.purple {
+            background: rgba(163, 113, 247, 0.1);
+            border-color: rgba(163, 113, 247, 0.4);
+        }
+
         .highlight-box strong {
             color: #58a6ff;
         }
@@ -185,6 +231,10 @@
 
         .highlight-box.success strong {
             color: #3fb950;
+        }
+
+        .highlight-box.purple strong {
+            color: #a371f7;
         }
 
         .divider {
@@ -220,17 +270,6 @@
             top: 22px;
         }
 
-        .screenshot-placeholder {
-            background: #0d1117;
-            border: 2px dashed #30363d;
-            border-radius: 8px;
-            padding: 24px;
-            text-align: center;
-            color: #8b949e;
-            margin: 16px 0;
-            font-size: 0.9em;
-        }
-
         .checklist {
             list-style: none;
             padding-left: 0;
@@ -242,22 +281,11 @@
         }
 
         .checklist li::before {
-            content: '✓';
+            content: '\2713';
             position: absolute;
             left: 4px;
             color: #3fb950;
             font-weight: bold;
-        }
-
-        .copy-hint {
-            display: inline-block;
-            background: #30363d;
-            color: #8b949e;
-            font-size: 0.75em;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-left: 8px;
-            vertical-align: middle;
         }
 
         .repo-url {
@@ -273,6 +301,67 @@
             user-select: all;
         }
 
+        .vibe-example {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .vibe-example .label {
+            color: #8b949e;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .vibe-example .prompt {
+            color: #a5d6ff;
+            font-size: 1.05em;
+            font-style: italic;
+            line-height: 1.6;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 20px 0;
+            padding: 16px;
+        }
+
+        .flow-step {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.9em;
+            color: #c9d1d9;
+            text-align: center;
+        }
+
+        .flow-arrow {
+            color: #58a6ff;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .keyboard-shortcut {
+            display: inline-block;
+            background: #30363d;
+            border: 1px solid #484f58;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            color: #e6edf3;
+            margin: 0 2px;
+        }
+
         footer {
             text-align: center;
             padding: 40px 20px;
@@ -285,179 +374,465 @@
             .hero h1 { font-size: 1.6em; }
             .step { padding: 24px 18px; }
             .download-btn { display: block; text-align: center; margin: 8px 0; }
+            .flow-diagram { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); }
         }
     </style>
 </head>
 <body>
 
 <div class="hero">
-    <h1>VS Code + Git + GitHub Copilot</h1>
-    <p>개발 환경 설정 가이드 - 설치부터 팀 프로젝트 참여까지</p>
+    <h1>바이브 코딩 시작 가이드</h1>
+    <p>아무것도 설치되지 않은 PC에서, 코딩 경험 없이도<br>AI와 대화하며 코드를 만드는 바이브 코딩을 시작하세요.</p>
+    <p class="subtitle">VS Code + Git + GitHub Copilot &mdash; AIBizTeam9</p>
 </div>
 
 <div class="container">
 
-    <!-- ==================== SECTION 1: 설치 ==================== -->
-    <div class="step-group-title"><span>PART 1 - 프로그램 설치</span></div>
+    <!-- ==================== 소개 ==================== -->
+    <div class="intro-box">
+        <h2>바이브 코딩(Vibe Coding)이란?</h2>
+        <p>코드를 직접 작성하는 대신, <strong>AI에게 자연어(한국어)로 원하는 것을 설명</strong>하면 AI가 코드를 대신 생성해주는 방식입니다.</p>
+        <p>이 가이드에서는 <strong>GitHub Copilot</strong>의 Agent 모드를 사용합니다. Copilot 채팅창에 한국어로 원하는 기능을 설명하면, AI가 코드를 생성하고 파일을 만들어줍니다.</p>
+        <p style="margin-top: 12px; color: #8b949e;">예시: "로그인 페이지 만들어줘" &rarr; Copilot이 알아서 코드 파일을 생성!</p>
+    </div>
+
+    <!-- ==================== 전체 흐름 ==================== -->
+    <div class="step" style="border-color: #58a6ff;">
+        <h2><span class="emoji">&#128506;</span> 전체 흐름 한눈에 보기</h2>
+        <div class="flow-diagram">
+            <div class="flow-step">1. VS Code 설치</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">2. Git 설치</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">3. GitHub 가입</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">4. Git 설정</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">5. 프로젝트 Clone</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">6. 내 브랜치 생성</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">7. Copilot 설정</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #a371f7;">8. 바이브 코딩!</div>
+        </div>
+    </div>
+
+    <!-- ==================== PART 1: 설치 ==================== -->
+    <div class="step-group-title"><span>PART 1 &mdash; 프로그램 설치</span></div>
 
     <div class="step">
         <div class="step-number">1</div>
-        <h2><span class="emoji">📦</span> VS Code 설치</h2>
-        <p>VS Code(Visual Studio Code)는 마이크로소프트에서 만든 무료 코드 에디터입니다.</p>
+        <h2><span class="emoji">&#128230;</span> VS Code 설치</h2>
+        <p>VS Code(Visual Studio Code)는 마이크로소프트에서 만든 <strong>무료</strong> 코드 에디터입니다. 바이브 코딩의 작업 공간이 됩니다.</p>
 
         <div style="margin: 20px 0;">
             <a href="https://code.visualstudio.com/" class="download-btn btn-vscode" target="_blank">VS Code 다운로드</a>
         </div>
 
         <ol>
-            <li>위 링크를 클릭하여 다운로드 페이지로 이동합니다.</li>
+            <li>위 버튼을 클릭하여 다운로드 페이지로 이동합니다.</li>
             <li><strong>"Download for Windows"</strong> 버튼을 클릭합니다.</li>
             <li>다운로드된 설치 파일(<code>VSCodeUserSetup-x64-*.exe</code>)을 실행합니다.</li>
-            <li>설치 과정에서 기본 설정 그대로 <strong>"다음"</strong>을 눌러 설치를 완료합니다.</li>
+            <li>설치 화면에서 <strong>"다음(Next)"</strong>을 계속 눌러 설치를 완료합니다.</li>
         </ol>
 
-        <div class="highlight-box">
-            <strong>Tip:</strong> 설치 시 "PATH에 추가" 옵션이 체크되어 있는지 확인하세요. 터미널에서 <code>code</code> 명령어로 VS Code를 열 수 있게 됩니다.
+        <div class="highlight-box warning">
+            <strong>체크 필수!</strong> 설치 도중 "추가 작업 선택" 화면이 나오면 다음 항목들을 <strong>반드시 체크</strong>하세요:
+            <ul style="margin-top: 8px; padding-left: 20px;">
+                <li><strong>"PATH에 추가"</strong> &mdash; 터미널에서 <code>code</code> 명령어를 사용할 수 있게 됩니다</li>
+                <li><strong>"Code(으)로 열기" 작업을 추가</strong> &mdash; 폴더를 우클릭하여 VS Code로 열 수 있습니다</li>
+            </ul>
         </div>
     </div>
 
     <div class="step">
         <div class="step-number">2</div>
-        <h2><span class="emoji">🔧</span> Git 설치</h2>
-        <p>Git은 소스 코드 버전 관리 도구입니다. 팀원들과 코드를 공유하려면 반드시 필요합니다.</p>
+        <h2><span class="emoji">&#128295;</span> Git 설치</h2>
+        <p>Git은 코드의 변경 이력을 관리하고, 팀원들과 코드를 공유하는 도구입니다.</p>
 
         <div style="margin: 20px 0;">
             <a href="https://git-scm.com/" class="download-btn btn-git" target="_blank">Git 다운로드</a>
         </div>
 
         <ol>
-            <li>위 링크를 클릭하여 다운로드 페이지로 이동합니다.</li>
+            <li>위 버튼을 클릭하여 다운로드 페이지로 이동합니다.</li>
             <li><strong>"Download for Windows"</strong> 버튼을 클릭합니다.</li>
             <li>다운로드된 설치 파일(<code>Git-*-64-bit.exe</code>)을 실행합니다.</li>
-            <li>설치 과정에서 기본 설정 그대로 <strong>"Next"</strong>를 눌러 설치를 완료합니다.</li>
+            <li>설치 화면에서 <strong>모든 옵션을 기본값 그대로</strong> 두고 <strong>"Next"</strong>를 눌러 설치합니다.</li>
         </ol>
 
         <div class="highlight-box warning">
-            <strong>주의:</strong> Git 설치 후 VS Code를 <strong>한 번 종료했다가 다시 실행</strong>해야 Git이 정상적으로 인식됩니다.
+            <strong>중요!</strong> Git 설치가 끝나면 <strong>VS Code를 완전히 종료했다가 다시 실행</strong>하세요. 그래야 VS Code가 Git을 인식합니다.
         </div>
     </div>
 
-    <!-- ==================== SECTION 2: Git 설정 ==================== -->
-    <div class="step-group-title"><span>PART 2 - Git 초기 설정 (필수!)</span></div>
+    <!-- ==================== PART 2: GitHub 가입 ==================== -->
+    <div class="step-group-title"><span>PART 2 &mdash; GitHub 계정 만들기</span></div>
 
     <div class="step">
         <div class="step-number">3</div>
-        <h2><span class="emoji">⚙️</span> Git 사용자 정보 설정</h2>
-        <p>Git을 처음 사용할 때 <strong>반드시</strong> 이름과 이메일을 설정해야 합니다. 이 정보가 없으면 <code>git push</code>를 할 수 없습니다.</p>
+        <h2><span class="emoji">&#128100;</span> GitHub 계정 가입</h2>
+        <p>GitHub는 코드를 저장하고 팀원과 공유하는 온라인 저장소입니다. 계정이 없으면 새로 만들어야 합니다.</p>
 
-        <p style="margin-top: 12px;"><strong>VS Code에서 터미널 여는 법:</strong></p>
+        <div style="margin: 20px 0;">
+            <a href="https://github.com/signup" class="download-btn btn-github" target="_blank">GitHub 가입하기</a>
+        </div>
+
         <ol>
-            <li>VS Code 상단 메뉴에서 <strong>Terminal</strong> &rarr; <strong>New Terminal</strong> 클릭</li>
-            <li>또는 단축키 <kbd style="background:#30363d; padding:2px 8px; border-radius:4px; font-size:0.9em;">Ctrl + `</kbd> (백틱) 사용</li>
+            <li>위 버튼을 클릭하여 GitHub 가입 페이지로 이동합니다.</li>
+            <li><strong>이메일 주소</strong>를 입력합니다. (학교/개인 이메일 모두 가능)</li>
+            <li><strong>비밀번호</strong>를 설정합니다.</li>
+            <li><strong>사용자명(Username)</strong>을 정합니다. &mdash; 예: <code>HongGilDong</code></li>
+            <li>이메일로 온 <strong>인증 코드</strong>를 입력하여 가입을 완료합니다.</li>
         </ol>
 
-        <p style="margin-top: 16px;">열린 터미널에 아래 명령어를 <strong>한 줄씩</strong> 입력하고 Enter를 누르세요:</p>
+        <div class="highlight-box">
+            <strong>이미 GitHub 계정이 있다면</strong> 이 단계는 건너뛰세요.
+        </div>
+    </div>
+
+    <!-- ==================== PART 3: Git 설정 ==================== -->
+    <div class="step-group-title"><span>PART 3 &mdash; Git 초기 설정 (필수!)</span></div>
+
+    <div class="step">
+        <div class="step-number">4</div>
+        <h2><span class="emoji">&#9881;&#65039;</span> Git 사용자 정보 설정</h2>
+        <p>Git을 처음 사용할 때 <strong>반드시</strong> 이름과 이메일을 설정해야 합니다. 이 정보가 코드 변경 기록에 남습니다.</p>
+
+        <h3>터미널 여는 법</h3>
+        <ol>
+            <li>VS Code를 실행합니다.</li>
+            <li>상단 메뉴에서 <strong>Terminal</strong> &rarr; <strong>New Terminal</strong>을 클릭합니다.</li>
+            <li>또는 단축키 <span class="keyboard-shortcut">Ctrl + `</span> (숫자 1 왼쪽의 백틱 키)을 누릅니다.</li>
+        </ol>
+        <p style="margin-top: 8px; color: #8b949e;">화면 하단에 터미널 창이 나타나면 성공입니다.</p>
+
+        <h3>사용자 정보 입력</h3>
+        <p>터미널에 아래 명령어를 <strong>한 줄씩</strong> 입력하고 Enter를 누르세요:</p>
 
         <div class="code-block">
             <code>
-                <span class="comment"># 이름 설정 (GitHub 사용자명 권장)</span><br>
-                <span class="command">git config</span> --global user.name <span class="string">"여기에본인이름"</span><br><br>
-                <span class="comment"># 이메일 설정 (GitHub 가입 이메일과 동일하게)</span><br>
-                <span class="command">git config</span> --global user.email <span class="string">"여기에본인이메일@example.com"</span>
+                <span class="comment"># 이름 설정 (GitHub 사용자명과 같게)</span><br>
+                <span class="command">git config</span> <span class="flag">--global</span> user.name <span class="string">"본인이름"</span><br><br>
+                <span class="comment"># 이메일 설정 (GitHub 가입 이메일과 같게)</span><br>
+                <span class="command">git config</span> <span class="flag">--global</span> user.email <span class="string">"본인이메일@example.com"</span>
             </code>
         </div>
 
         <div class="highlight-box warning">
-            <strong>중요:</strong> 큰따옴표(" ") 안의 내용을 본인 정보로 바꿔주세요!<br>
+            <strong>큰따옴표 안의 내용을 본인 정보로 바꾸세요!</strong><br>
             예시: <code>git config --global user.name "HongGilDong"</code><br>
             예시: <code>git config --global user.email "hong@gmail.com"</code>
         </div>
 
-        <p style="margin-top: 16px;">설정이 잘 됐는지 확인하려면:</p>
+        <p style="margin-top: 16px;">설정이 잘 됐는지 확인:</p>
         <div class="code-block">
             <code>
-                <span class="command">git config</span> --global user.name<br>
-                <span class="command">git config</span> --global user.email
+                <span class="command">git config</span> <span class="flag">--global</span> user.name<br>
+                <span class="command">git config</span> <span class="flag">--global</span> user.email
             </code>
         </div>
-        <p>입력한 이름과 이메일이 출력되면 성공입니다.</p>
+        <p>본인이 입력한 이름과 이메일이 그대로 출력되면 성공입니다.</p>
     </div>
 
-    <!-- ==================== SECTION 3: 프로젝트 클론 ==================== -->
-    <div class="step-group-title"><span>PART 3 - 팀 프로젝트 가져오기</span></div>
+    <!-- ==================== PART 4: 프로젝트 클론 ==================== -->
+    <div class="step-group-title"><span>PART 4 &mdash; 팀 프로젝트 가져오기</span></div>
 
     <div class="step">
-        <div class="step-number">4</div>
-        <h2><span class="emoji">📂</span> 레포지토리 클론 (Clone)</h2>
-        <p>GitHub에 있는 팀 프로젝트를 내 컴퓨터로 복사(clone)합니다.</p>
+        <div class="step-number">5</div>
+        <h2><span class="emoji">&#128194;</span> 프로젝트 Clone (복사)</h2>
+        <p>GitHub에 있는 팀 프로젝트를 내 컴퓨터로 복사합니다.</p>
 
+        <h3>방법 A: VS Code GUI 사용 (추천)</h3>
         <ol>
             <li>VS Code를 실행합니다.</li>
-            <li>왼쪽 사이드바에서 <strong>"Clone Repository"</strong> 버튼을 클릭합니다.</li>
-            <li>상단에 나타나는 입력창에 아래 주소를 붙여넣습니다:</li>
+            <li>시작 화면에서 <strong>"Clone Git Repository..."</strong>를 클릭합니다.<br>
+                (또는 <span class="keyboard-shortcut">Ctrl + Shift + P</span> &rarr; <code>Git: Clone</code> 입력)</li>
+            <li>상단 입력창에 아래 주소를 붙여넣습니다:</li>
         </ol>
 
         <div class="repo-url">https://github.com/AIBizTeam9/team9.git</div>
 
         <ol start="4">
-            <li><strong>"Clone from URL"</strong> 항목을 클릭합니다.</li>
-            <li>폴더 선택 창이 뜨면, 프로젝트를 저장할 <strong>로컬 폴더 위치</strong>를 지정합니다.</li>
-            <li><strong>"Select as Repository Destination"</strong> 버튼을 클릭합니다.</li>
+            <li><strong>Enter</strong>를 누릅니다.</li>
+            <li>프로젝트를 저장할 <strong>폴더 위치</strong>를 선택합니다. (바탕화면, 문서 등 원하는 곳)</li>
+            <li><strong>"Select as Repository Destination"</strong>을 클릭합니다.</li>
+            <li>GitHub 로그인 창이 뜨면 본인 GitHub 계정으로 로그인합니다.</li>
             <li>클론이 완료되면 <strong>"Open"</strong>을 눌러 프로젝트를 엽니다.</li>
         </ol>
 
+        <h3>방법 B: 터미널 사용</h3>
+        <div class="code-block">
+            <code>
+                <span class="comment"># 원하는 폴더로 이동 (예: 바탕화면)</span><br>
+                <span class="command">cd</span> ~/Desktop<br><br>
+                <span class="comment"># 프로젝트 복사</span><br>
+                <span class="command">git clone</span> <span class="string">https://github.com/AIBizTeam9/team9.git</span><br><br>
+                <span class="comment"># VS Code로 프로젝트 열기</span><br>
+                <span class="command">code</span> team9
+            </code>
+        </div>
+
         <div class="highlight-box success">
-            <strong>성공!</strong> 왼쪽 Explorer에 프로젝트 파일들 (docs 폴더 등)이 보이면 정상적으로 완료된 것입니다.
+            <strong>성공 확인!</strong> VS Code 왼쪽 Explorer에 <code>app/</code>, <code>backend/</code>, <code>docs/</code> 폴더가 보이면 정상입니다.
         </div>
     </div>
 
-    <!-- ==================== SECTION 4: Copilot ==================== -->
-    <div class="step-group-title"><span>PART 4 - GitHub Copilot 설정</span></div>
-
-    <div class="step">
-        <div class="step-number">5</div>
-        <h2><span class="emoji">🤖</span> GitHub Copilot 활성화</h2>
-        <p>GitHub Copilot은 AI 기반 코드 자동 완성 도구입니다.</p>
-
-        <ol>
-            <li>VS Code 좌측 하단의 <strong>사람 아이콘</strong>을 클릭합니다.</li>
-            <li><strong>"Sign in to GitHub"</strong>을 선택하여 GitHub 계정으로 로그인합니다.</li>
-            <li>로그인 완료 후, VS Code의 Welcome 탭에서 <strong>"Use AI Features with Copilot for free"</strong> 항목을 선택합니다.</li>
-            <li>우측 하단의 <strong>"Use AI Features"</strong> 버튼을 클릭합니다.</li>
-        </ol>
-
-        <div class="highlight-box">
-            <strong>Copilot Pro ($10/월) 안내:</strong><br>
-            - 처음 가입 시 <strong>30일 무료 체험</strong>이 가능합니다.<br>
-            - 무료 체험 없이도 기본 Copilot Free 기능은 사용할 수 있습니다.<br>
-            - Pro 요금제는 빡세게 사용하면 3일 만에 토큰을 다 소진할 수 있습니다.<br>
-            - 토큰은 <strong>매월 1일에 리셋</strong>됩니다.
-        </div>
-    </div>
-
-    <!-- ==================== SECTION 5: 기본 Git 사용법 ==================== -->
-    <div class="step-group-title"><span>PART 5 - 기본 Git 사용법 (참고)</span></div>
+    <!-- ==================== PART 5: 내 브랜치 만들기 ==================== -->
+    <div class="step-group-title"><span>PART 5 &mdash; 내 이름으로 브랜치 만들기</span></div>
 
     <div class="step">
         <div class="step-number">6</div>
-        <h2><span class="emoji">🚀</span> 코드 수정 후 Push 하기</h2>
-        <p>파일을 수정한 뒤 GitHub에 올리는 기본 흐름입니다.</p>
+        <h2><span class="emoji">&#127796;</span> 브랜치(Branch)란?</h2>
+        <p>브랜치는 <strong>나만의 작업 공간</strong>입니다. 각자 본인 이름의 브랜치에서 작업하면, 다른 사람의 코드와 충돌 없이 자유롭게 바이브 코딩할 수 있습니다.</p>
+
+        <div class="flow-diagram">
+            <div class="flow-step">main (원본)</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #a371f7;">jiyun (지윤의 작업)</div>
+        </div>
+        <div class="flow-diagram" style="margin-top: -12px;">
+            <div class="flow-step" style="visibility: hidden;">main (원본)</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #f78166;">donggeun (동근의 작업)</div>
+        </div>
+
+        <h3>내 브랜치 만들고 이동하기</h3>
+        <p>VS Code 터미널에서 아래 명령어를 입력하세요:</p>
 
         <div class="code-block">
             <code>
-                <span class="comment"># 1. 변경된 파일 확인</span><br>
-                <span class="command">git status</span><br><br>
-                <span class="comment"># 2. 변경된 파일을 스테이징 (올릴 준비)</span><br>
-                <span class="command">git add</span> .<br><br>
-                <span class="comment"># 3. 커밋 (변경 내용 저장)</span><br>
-                <span class="command">git commit</span> -m <span class="string">"변경 내용 설명"</span><br><br>
-                <span class="comment"># 4. GitHub에 업로드</span><br>
-                <span class="command">git push</span>
+                <span class="comment"># "본인이름" 을 자신의 이름으로 바꾸세요 (영어, 소문자)</span><br>
+                <span class="command">git checkout</span> <span class="flag">-b</span> <span class="string">본인이름</span>
             </code>
         </div>
 
         <div class="highlight-box">
-            <strong>Tip:</strong> VS Code 왼쪽의 <strong>Source Control</strong> 탭 (분기 아이콘)에서 GUI로도 동일한 작업을 할 수 있습니다.
+            <strong>예시:</strong><br>
+            <code>git checkout -b jiyun</code> &mdash; 지윤<br>
+            <code>git checkout -b jaerim</code> &mdash; 재림<br>
+            <code>git checkout -b donggeun</code> &mdash; 동근<br>
+            <code>git checkout -b seokbin</code> &mdash; 석빈
+        </div>
+
+        <h3>브랜치 확인하기</h3>
+        <p>VS Code <strong>왼쪽 하단</strong>을 보면 현재 브랜치 이름이 표시됩니다. 본인 이름이 보이면 성공!</p>
+        <p>또는 터미널에서 확인:</p>
+        <div class="code-block">
+            <code>
+                <span class="command">git branch</span>
+                <span class="comment"># * 표시가 현재 브랜치</span>
+            </code>
+        </div>
+
+        <div class="highlight-box warning">
+            <strong>주의!</strong> 항상 <strong>본인 브랜치</strong>에서 작업하세요. <code>main</code> 브랜치에서는 직접 작업하지 않습니다.<br>
+            VS Code 왼쪽 하단에 본인 이름이 표시되는지 확인하는 습관을 들이세요.
+        </div>
+    </div>
+
+    <!-- ==================== PART 6: Copilot 설정 ==================== -->
+    <div class="step-group-title"><span>PART 6 &mdash; GitHub Copilot 설정</span></div>
+
+    <div class="step">
+        <div class="step-number">7</div>
+        <h2><span class="emoji">&#129302;</span> GitHub Copilot 활성화</h2>
+        <p>GitHub Copilot은 VS Code 안에서 AI와 대화하며 코드를 생성하는 도구입니다. 바이브 코딩의 핵심!</p>
+
+        <h3>Step 1: GitHub 로그인</h3>
+        <ol>
+            <li>VS Code 좌측 하단의 <strong>사람 아이콘</strong>을 클릭합니다.</li>
+            <li><strong>"Sign in with GitHub to use GitHub Copilot"</strong>을 선택합니다.</li>
+            <li>브라우저가 열리면 GitHub 계정으로 로그인하고 <strong>"Authorize"</strong>를 클릭합니다.</li>
+        </ol>
+
+        <h3>Step 2: Copilot 무료 플랜 활성화</h3>
+        <ol>
+            <li>VS Code로 돌아오면 상단에 알림이 뜹니다.</li>
+            <li><strong>"Use AI Features with Copilot for Free"</strong>를 선택합니다.</li>
+        </ol>
+
+        <div class="highlight-box">
+            <strong>Copilot 요금제 안내:</strong><br>
+            <ul style="margin-top: 8px; padding-left: 20px;">
+                <li><strong>Free:</strong> 월 2,000회 코드 자동완성 + 50회 채팅 (무료)</li>
+                <li><strong>Pro ($10/월):</strong> 무제한 코드 자동완성 + 무제한 채팅 (30일 무료 체험 가능)</li>
+            </ul>
+            <p style="margin-top: 8px;">바이브 코딩을 본격적으로 하려면 <strong>Pro 무료 체험</strong>을 추천합니다. Free는 채팅 50회가 금방 소진됩니다.</p>
+        </div>
+
+        <h3>Step 3: Copilot 채팅창 열기</h3>
+        <p>단축키 <span class="keyboard-shortcut">Ctrl + Alt + I</span>를 눌러 Copilot 채팅창을 엽니다.</p>
+        <p>또는 VS Code 상단 타이틀바의 <strong>Copilot 아이콘</strong>을 클릭합니다.</p>
+
+        <div class="highlight-box success">
+            <strong>성공!</strong> 채팅창이 열리고 메시지를 입력할 수 있으면 Copilot 설정이 완료된 것입니다.
+        </div>
+    </div>
+
+    <!-- ==================== PART 7: 바이브 코딩 ==================== -->
+    <div class="step-group-title"><span>PART 7 &mdash; 바이브 코딩 시작!</span></div>
+
+    <div class="step">
+        <div class="step-number">8</div>
+        <h2><span class="emoji">&#10024;</span> Copilot Agent 모드로 바이브 코딩하기</h2>
+        <p>이제 AI와 대화하며 코드를 만들 준비가 되었습니다!</p>
+
+        <h3>Agent 모드 선택</h3>
+        <ol>
+            <li>Copilot 채팅창을 엽니다: <span class="keyboard-shortcut">Ctrl + Alt + I</span></li>
+            <li>채팅창 상단의 모드 선택 드롭다운에서 <strong>"Agent"</strong>를 선택합니다.</li>
+        </ol>
+
+        <div class="highlight-box purple">
+            <strong>Agent 모드란?</strong> 일반 채팅과 달리, Agent 모드는 AI가 <strong>직접 파일을 생성/수정</strong>하고, <strong>터미널 명령어를 실행</strong>할 수 있습니다. 바이브 코딩에 최적화된 모드입니다.
+        </div>
+
+        <h3>바이브 코딩 방법</h3>
+        <p>채팅창에 <strong>한국어로 원하는 것을 자연스럽게 설명</strong>하면 됩니다:</p>
+
+        <div class="vibe-example">
+            <div class="label">프롬프트 예시 1 - 페이지 만들기</div>
+            <div class="prompt">"app 폴더 안에 퀴즈 페이지를 만들어줘. 사용자가 5개의 질문에 답하면 결과 페이지로 넘어가는 구조로 해줘."</div>
+        </div>
+
+        <div class="vibe-example">
+            <div class="label">프롬프트 예시 2 - 디자인 수정</div>
+            <div class="prompt">"이 페이지 배경을 어두운 색으로 바꾸고, 버튼을 둥글게 만들어줘."</div>
+        </div>
+
+        <div class="vibe-example">
+            <div class="label">프롬프트 예시 3 - 기능 추가</div>
+            <div class="prompt">"사용자가 퀴즈 답변을 제출하면 로딩 애니메이션을 보여주고, 3초 후에 결과 페이지로 이동하게 해줘."</div>
+        </div>
+
+        <div class="vibe-example">
+            <div class="label">프롬프트 예시 4 - 에러 해결</div>
+            <div class="prompt">"터미널에 이런 에러가 나와: [에러 메시지 붙여넣기]. 이거 고쳐줘."</div>
+        </div>
+
+        <h3>바이브 코딩 핵심 팁</h3>
+        <ul>
+            <li><strong>구체적으로 설명하세요:</strong> "좋은 페이지 만들어줘" 보다 "카드 형태로 3개의 옵션을 보여주는 선택 페이지"가 훨씬 좋은 결과를 냅니다.</li>
+            <li><strong>한 번에 하나씩:</strong> 한 번에 너무 많은 것을 요청하지 마세요. 기능 하나씩 차근차근 추가하세요.</li>
+            <li><strong>결과를 확인하세요:</strong> AI가 코드를 생성하면 미리보기로 결과를 확인하고, 마음에 안 드는 부분을 다시 요청하세요.</li>
+            <li><strong>변경 사항을 수락하세요:</strong> Agent가 파일을 수정하면 diff(변경 내용)가 표시됩니다. 내용이 괜찮으면 <strong>"Accept"</strong>를 클릭하세요.</li>
+            <li><strong>되돌리기:</strong> 마음에 안 들면 <strong>"Discard"</strong>를 클릭하거나, <span class="keyboard-shortcut">Ctrl + Z</span>로 되돌릴 수 있습니다.</li>
+        </ul>
+    </div>
+
+    <!-- ==================== PART 8: 저장하고 Push ==================== -->
+    <div class="step-group-title"><span>PART 8 &mdash; 작업 저장하고 GitHub에 올리기</span></div>
+
+    <div class="step">
+        <div class="step-number">9</div>
+        <h2><span class="emoji">&#128190;</span> Git으로 작업 저장하기 (Commit & Push)</h2>
+        <p>바이브 코딩으로 코드를 만들었으면 <strong>주기적으로 저장(commit)</strong>하고 <strong>GitHub에 올려(push)</strong>야 합니다. 중간 저장이라고 생각하세요!</p>
+
+        <h3>방법 A: VS Code GUI 사용 (초보자 추천!)</h3>
+        <ol>
+            <li>VS Code 왼쪽 사이드바에서 <strong>소스 제어(Source Control)</strong> 아이콘을 클릭합니다. (분기 모양 아이콘, 또는 <span class="keyboard-shortcut">Ctrl + Shift + G</span>)</li>
+            <li>변경된 파일 목록이 보입니다. <strong>"Changes"</strong> 옆의 <strong>+ 버튼</strong>을 클릭하여 모든 변경 파일을 스테이징합니다.</li>
+            <li>상단 입력창에 <strong>변경 내용 설명</strong>을 입력합니다. (예: "퀴즈 페이지 추가")</li>
+            <li><strong>"Commit"</strong> 버튼 &#10003;을 클릭합니다.</li>
+            <li><strong>"Sync Changes"</strong> 버튼을 클릭하여 GitHub에 업로드합니다.</li>
+        </ol>
+
+        <div class="highlight-box">
+            <strong>처음 Push할 때</strong> "브랜치를 게시(publish)하시겠습니까?" 라는 메시지가 뜹니다. <strong>"OK"</strong>를 눌러주세요. GitHub에 본인 브랜치가 처음 생성되는 것입니다.
+        </div>
+
+        <h3>방법 B: 터미널 사용</h3>
+        <div class="code-block">
+            <code>
+                <span class="comment"># 1. 변경된 파일 확인</span><br>
+                <span class="command">git status</span><br><br>
+                <span class="comment"># 2. 모든 변경 파일을 스테이징</span><br>
+                <span class="command">git add</span> .<br><br>
+                <span class="comment"># 3. 변경 내용 저장 (커밋 메시지 작성)</span><br>
+                <span class="command">git commit</span> <span class="flag">-m</span> <span class="string">"퀴즈 페이지 추가"</span><br><br>
+                <span class="comment"># 4. GitHub에 올리기 (처음 한 번만 -u 옵션 필요)</span><br>
+                <span class="command">git push</span> <span class="flag">-u</span> origin <span class="string">본인이름</span>
+            </code>
+        </div>
+
+        <div class="highlight-box warning">
+            <strong>"본인이름"을 본인 브랜치 이름으로 바꾸세요!</strong><br>
+            예시: <code>git push -u origin jiyun</code><br><br>
+            <strong>두 번째 push부터는</strong> 간단히 <code>git push</code>만 입력하면 됩니다.
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-number">10</div>
+        <h2><span class="emoji">&#128260;</span> 바이브 코딩 작업 루틴</h2>
+        <p>바이브 코딩을 하면서 반복할 기본 루틴입니다:</p>
+
+        <div class="flow-diagram">
+            <div class="flow-step" style="border-color: #a371f7;">Copilot에게<br>요청하기</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step">결과 확인<br>& 수정 요청</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #3fb950;">만족하면<br>Accept</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #58a6ff;">Commit<br>& Push</div>
+        </div>
+
+        <div class="highlight-box success">
+            <strong>자주 커밋하세요!</strong> 기능 하나를 완성할 때마다 커밋하는 것이 좋습니다. 문제가 생겼을 때 이전 상태로 쉽게 돌아갈 수 있습니다.
+        </div>
+
+        <h3>다음에 VS Code를 다시 열 때</h3>
+        <p>VS Code를 껐다 켜면 프로젝트가 그대로 열려 있습니다. 작업을 계속하기 전에:</p>
+        <ol>
+            <li>왼쪽 하단에서 <strong>본인 브랜치</strong>에 있는지 확인하세요.</li>
+            <li>만약 <code>main</code>으로 되어 있다면, 터미널에서 <code>git checkout 본인이름</code>을 입력하세요.</li>
+        </ol>
+    </div>
+
+    <!-- ==================== 문제 해결 ==================== -->
+    <div class="step-group-title"><span>자주 겪는 문제 해결</span></div>
+
+    <div class="step">
+        <h2><span class="emoji">&#128533;</span> 이런 에러가 나왔어요!</h2>
+
+        <h3>"git is not recognized" / "git을 찾을 수 없습니다"</h3>
+        <p>&rarr; Git 설치 후 <strong>VS Code를 완전히 종료했다가 다시 실행</strong>하세요.</p>
+
+        <div class="divider"></div>
+
+        <h3>"Please tell me who you are" / "사용자 정보를 설정해주세요"</h3>
+        <p>&rarr; <strong>PART 3</strong>의 <code>git config</code> 설정을 아직 안 한 것입니다. Step 4를 따라하세요.</p>
+
+        <div class="divider"></div>
+
+        <h3>"Permission denied" / "권한이 없습니다"</h3>
+        <p>&rarr; GitHub 로그인이 안 됐거나, 팀 저장소에 대한 접근 권한이 없습니다. 팀장에게 GitHub 사용자명을 알려주고 <strong>Collaborator 초대</strong>를 요청하세요.</p>
+
+        <div class="divider"></div>
+
+        <h3>"fatal: not a git repository"</h3>
+        <p>&rarr; Clone한 폴더를 VS Code에서 열지 않은 상태입니다. <strong>File &rarr; Open Folder</strong>에서 <code>team9</code> 폴더를 열어주세요.</p>
+
+        <div class="divider"></div>
+
+        <h3>Copilot 채팅이 안 열려요</h3>
+        <p>&rarr; VS Code를 최신 버전으로 업데이트하세요. (Help &rarr; Check for Updates)</p>
+        <p>&rarr; GitHub 로그인 상태를 확인하세요. (좌측 하단 사람 아이콘)</p>
+
+        <div class="divider"></div>
+
+        <h3>Push 할 때 "rejected" / "거부됨"</h3>
+        <p>&rarr; <code>main</code> 브랜치에 직접 push하면 거부됩니다. 반드시 <strong>본인 이름 브랜치</strong>에서 push하세요.</p>
+        <div class="code-block">
+            <code>
+                <span class="comment"># 현재 브랜치 확인</span><br>
+                <span class="command">git branch</span><br><br>
+                <span class="comment"># 본인 브랜치로 이동 (이미 만든 경우)</span><br>
+                <span class="command">git checkout</span> <span class="string">본인이름</span>
+            </code>
         </div>
     </div>
 
@@ -469,21 +844,24 @@
         <ul class="checklist">
             <li>VS Code 설치 완료</li>
             <li>Git 설치 완료</li>
+            <li>GitHub 계정 가입 완료</li>
             <li><code>git config</code>로 이름/이메일 설정 완료</li>
-            <li>팀 프로젝트 레포지토리 Clone 완료</li>
-            <li>GitHub 계정 로그인 완료</li>
+            <li>팀 프로젝트 Clone 완료</li>
+            <li>본인 이름으로 브랜치 생성 완료</li>
+            <li>GitHub 계정으로 VS Code 로그인 완료</li>
             <li>GitHub Copilot 활성화 완료</li>
+            <li>Copilot 채팅창이 열리는 것 확인</li>
         </ul>
 
         <div class="highlight-box success">
-            <strong>축하합니다!</strong> 모든 설정이 완료되었습니다. 이제 팀 프로젝트에 참여할 수 있습니다.
+            <strong>축하합니다!</strong> 모든 준비가 끝났습니다. Copilot 채팅창에서 한국어로 원하는 것을 말하면 바이브 코딩이 시작됩니다!
         </div>
     </div>
 
 </div>
 
 <footer>
-    AIBizTeam9 - 개발 환경 설정 가이드
+    AIBizTeam9 &mdash; 바이브 코딩 시작 가이드
 </footer>
 
 </body>
