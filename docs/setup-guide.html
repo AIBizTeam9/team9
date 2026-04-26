@@ -719,6 +719,87 @@
         </ol>
     </div>
 
+    <!-- ==================== PART 7: Vercel 배포 ==================== -->
+    <div class="step-group-title"><span>PART 7 &mdash; Vercel 배포 (내 브랜치 → 웹사이트)</span></div>
+
+    <div class="step">
+        <div class="step-number">9</div>
+        <h2><span class="emoji">▲</span> Vercel 배포 설정하기</h2>
+        <p>코드를 push하면 자동으로 웹사이트에 반영됩니다. 처음 한 번만 설정하면 됩니다.</p>
+
+        <h3>Step 1: Vercel 가입</h3>
+        <ol>
+            <li><a href="https://vercel.com" style="color:#58a6ff" target="_blank">https://vercel.com</a> 접속</li>
+            <li><strong>"Sign Up"</strong> → <strong>"Continue with GitHub"</strong> 클릭</li>
+            <li>GitHub 계정으로 로그인하면 가입 완료</li>
+        </ol>
+
+        <h3>Step 2: 프로젝트 연결</h3>
+        <ol>
+            <li>Vercel 대시보드 → <strong>Add New...</strong> → <strong>Project</strong></li>
+            <li><strong>Import Git Repository</strong> → <strong>AIBizTeam9/team9</strong> 선택</li>
+            <li>저장소가 안 보이면 <strong>"Adjust GitHub App Permissions"</strong> 클릭해서 권한 추가</li>
+        </ol>
+
+        <div class="highlight-box warning">
+            <strong>Framework Preset = Next.js 필수!</strong><br>
+            Deploy 버튼 누르기 전에 반드시 확인하세요:
+            <ul style="margin-top: 8px; padding-left: 20px;">
+                <li><strong>Framework Preset:</strong> <code>Next.js</code> (자동 감지가 안 되면 직접 선택)</li>
+                <li><strong>Build Command:</strong> 기본값 그대로 (비워두기)</li>
+                <li><strong>Output Directory:</strong> 기본값 그대로 (비워두기)</li>
+            </ul>
+            <p style="margin-top: 8px;">만약 "Others"로 되어 있으면 <strong>반드시 Next.js로 변경</strong>해야 합니다. 안 바꾸면 빌드가 실패합니다!</p>
+        </div>
+
+        <p>설정 확인 후 <strong>"Deploy"</strong> 클릭!</p>
+
+        <h3>Step 3: 배포 후 확인</h3>
+        <div class="highlight-box">
+            <strong>빌드 설정 재확인 경로:</strong><br>
+            프로젝트 → 왼쪽 메뉴 <strong>Settings</strong> → <strong>Build and Deployment</strong><br><br>
+            여기서 Framework Preset이 <strong>Next.js</strong>인지 확인하세요. "Others"로 되어 있으면 변경 후 Redeploy!
+        </div>
+
+        <h3>Step 4: 환경변수 설정</h3>
+        <p>Vercel 대시보드 → 프로젝트 → <strong>Settings</strong> → <strong>Environment Variables</strong></p>
+        <p>동근이가 카카오톡으로 보내는 KEY=VALUE 값을 아래 형식으로 추가하세요:</p>
+
+        <div class="code-block">
+            <code>
+                <span class="string">NEXT_PUBLIC_SUPABASE_URL</span> = <span class="flag">카톡에서 받은 값</span><br>
+                <span class="string">NEXT_PUBLIC_SUPABASE_ANON_KEY</span> = <span class="flag">카톡에서 받은 값</span>
+            </code>
+        </div>
+
+        <p>Environment는 <strong>모두 체크</strong> (Production, Preview, Development) → Save</p>
+
+        <h3>Step 5: Deploy Hook (자동 배포)</h3>
+        <p><strong>Settings</strong> → <strong>Git</strong> → 스크롤 → <strong>Deploy Hooks</strong></p>
+        <ol>
+            <li><strong>Name:</strong> 본인 이름 (예: <code>jiyun</code>)</li>
+            <li><strong>Branch:</strong> 본인 브랜치 이름 (예: <code>jiyun</code>)</li>
+            <li><strong>"Create Hook"</strong> 클릭</li>
+        </ol>
+
+        <div class="highlight-box success">
+            <strong>완료!</strong> 이제 git push하면 Vercel이 자동으로 빌드하고 배포합니다.<br>
+            배포된 URL은 Vercel 대시보드 → <strong>Deployments</strong>에서 확인하세요.
+        </div>
+
+        <h3>Step 6: 로컬 환경변수 (.env.local)</h3>
+        <p>로컬에서 개발할 때도 환경변수가 필요합니다.</p>
+        <ol>
+            <li>프로젝트 폴더(team9/)에 <code>.env.local</code> 파일 생성</li>
+            <li>동근이가 카톡으로 보내는 KEY=VALUE 내용을 통째로 붙여넣기</li>
+            <li>저장 (Ctrl+S)</li>
+        </ol>
+
+        <div class="highlight-box">
+            <strong>이 파일은 .gitignore에 등록되어 있어서 GitHub에 올라가지 않습니다.</strong> 안심하세요!
+        </div>
+    </div>
+
     <!-- ==================== 문제 해결 ==================== -->
     <div class="step-group-title"><span>자주 겪는 문제 해결</span></div>
 
@@ -776,6 +857,11 @@
             <li>본인 이름으로 브랜치 생성 완료</li>
             <li>GitHub Copilot 활성화 완료</li>
             <li>Copilot 채팅창이 열리는 것 확인</li>
+            <li>Vercel 가입 & 프로젝트 연결 완료</li>
+            <li>Vercel Framework Preset = Next.js 확인</li>
+            <li>Vercel 환경변수 설정 완료</li>
+            <li>Deploy Hook 생성 완료 (내 브랜치)</li>
+            <li>.env.local 파일 생성 완료</li>
         </ul>
 
         <div class="highlight-box success">
