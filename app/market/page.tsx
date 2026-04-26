@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import {
   fetchMarketData,
   MARKET_CATEGORIES,
@@ -71,32 +70,16 @@ export default function MarketPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="text-sm text-indigo-300/60 hover:text-indigo-300 transition-colors"
-              >
-                ← 홈
-              </Link>
-              <Link
-                href="/resources"
-                className="text-sm text-indigo-300/60 hover:text-indigo-300 transition-colors"
-              >
-                외부 데이터 허브 →
-              </Link>
-            </div>
-            <h1 className="text-xl font-bold mt-1">
-              <span className="bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">
-                시장 인사이트
-              </span>
-            </h1>
-            <p className="text-xs text-cyan-300/50 mt-0.5">
-              산업 트렌드, 연봉 데이터, 수요 스킬 — 커리어 결정에 필요한 시장 정보
-            </p>
-          </div>
+      <header className="border-b border-white/5">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <h1 className="text-xl font-bold">
+            <span className="bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">
+              시장 인사이트
+            </span>
+          </h1>
+          <p className="text-xs text-cyan-300/50 mt-0.5">
+            산업 트렌드, 연봉 데이터, 수요 스킬 — 커리어 결정에 필요한 시장 정보
+          </p>
         </div>
       </header>
 

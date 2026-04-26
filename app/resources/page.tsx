@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import {
   fetchResources,
   CATEGORIES,
@@ -62,21 +61,16 @@ export default function ResourcesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <Link href="/" className="text-sm text-indigo-300/60 hover:text-indigo-300 transition-colors">
-              ← 홈
-            </Link>
-            <h1 className="text-xl font-bold mt-1">
-              <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-                외부 데이터 허브
-              </span>
-            </h1>
-            <p className="text-xs text-indigo-300/50 mt-0.5">
-              커리어 탐색에 필요한 외부 리소스를 한곳에 모았습니다
-            </p>
-          </div>
+      <header className="border-b border-white/5">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <h1 className="text-xl font-bold">
+            <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+              외부 데이터 허브
+            </span>
+          </h1>
+          <p className="text-xs text-indigo-300/50 mt-0.5">
+            커리어 탐색에 필요한 외부 리소스를 한곳에 모았습니다
+          </p>
         </div>
       </header>
 

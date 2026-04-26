@@ -1,20 +1,12 @@
 "use client";
 
-import Link from "next/link";
-
 export default function QuizPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-pink-950/30 to-purple-950 text-white">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-sm border-b border-white/5">
+      <header className="border-b border-white/5">
         <div className="max-w-5xl mx-auto px-4 py-4">
-          <Link
-            href="/"
-            className="text-sm text-pink-300/60 hover:text-pink-300 transition-colors"
-          >
-            ← 홈
-          </Link>
-          <h1 className="text-xl font-bold mt-1">
+          <h1 className="text-xl font-bold">
             <span className="bg-gradient-to-r from-pink-300 to-rose-300 bg-clip-text text-transparent">
               퀴즈 & 페르소나
             </span>
