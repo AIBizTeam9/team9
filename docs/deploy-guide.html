@@ -390,6 +390,33 @@
             <span class="callout-icon">💡</span>
             <span>저장소가 안 보이면 <strong>Adjust GitHub App Permissions</strong>를 클릭해서 AIBizTeam9 organization에 접근 권한을 추가하세요.</span>
         </div>
+
+        <h3 style="margin: 20px 0 8px; color: #a78bfa; font-size: 1em;">⚠️ 빌드 설정 확인 (중요!)</h3>
+        <p>배포가 실패하면 빌드 설정을 확인해야 합니다.</p>
+
+        <div class="screenshot-guide">
+            <div class="nav-path">
+                프로젝트 → 왼쪽 메뉴 <span>Settings</span> → <span>Build and Deployment</span>
+            </div>
+            <div class="action" style="margin-top: 8px;">아래 값들이 맞는지 확인하세요:</div>
+        </div>
+
+        <table class="env-table">
+            <thead>
+                <tr><th>항목</th><th>값</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Framework Preset</td><td><strong>Next.js</strong></td></tr>
+                <tr><td>Build Command</td><td><code>npm run build</code> 또는 <code>next build</code> (기본값)</td></tr>
+                <tr><td>Output Directory</td><td><strong>Next.js default</strong> (비워두기)</td></tr>
+                <tr><td>Install Command</td><td>기본값 (비워두기)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-warn">
+            <span class="callout-icon">⚠️</span>
+            <span>Framework Preset이 <strong>Next.js</strong>가 아니면 빌드가 실패합니다! 반드시 Next.js로 설정하고, Output Directory는 Override하지 마세요.</span>
+        </div>
     </div>
 
     <!-- STEP 3: 환경변수 설정 -->
