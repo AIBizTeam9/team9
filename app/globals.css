@@ -1,13 +1,32 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 :root {
-  --background: #f8f9ff;
-  --foreground: #0d1c2e;
-  --primary: #2563eb;
-  --primary-light: #dbeafe;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --card: #ffffff;
+  --bg: #fafaf9;
+  --bg-2: #ffffff;
+  --ink: #141413;
+  --ink-2: #3a3a38;
+  --ink-3: #6b6b67;
+  --line: #e9e8e4;
+  --line-2: #dedcd6;
+  --accent: #1a1a18;
+  --accent-2: #f0ece4;
+  --warm: #d97757;
+  --warm-soft: #f6e9de;
+  --blue: #3e6ea9;
+  --blue-soft: #e3edf9;
+  --green: #4d7c5a;
+  --green-soft: #e5efe5;
+  --shadow: 0 1px 2px rgba(17,17,16,.04), 0 8px 24px rgba(17,17,16,.04);
+  --shadow-lg: 0 2px 4px rgba(17,17,16,.06), 0 18px 40px rgba(17,17,16,.08);
+
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --primary: var(--warm);
+  --primary-light: var(--warm-soft);
+  --muted: var(--ink-3);
+  --border: var(--line);
+  --card: var(--bg-2);
 }
 
 @theme inline {
@@ -19,15 +38,22 @@
   --color-border: var(--border);
   --color-card: var(--card);
   --font-sans: var(--font-inter);
+  --font-serif: 'Instrument Serif', serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), 'Inter', Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.font-serif {
+  font-family: 'Instrument Serif', serif;
 }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }

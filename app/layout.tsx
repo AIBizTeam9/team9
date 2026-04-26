@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -15,11 +15,11 @@ export const metadata: Metadata = {
 };
 
 const NAV_ITEMS = [
-  { href: "/quiz", label: "퀴즈", icon: "🧪" },
-  { href: "/debate", label: "디베이트", icon: "💬" },
-  { href: "/plan", label: "90일 플랜", icon: "📋" },
-  { href: "/market", label: "시장 인사이트", icon: "📊" },
-  { href: "/resources", label: "리소스 허브", icon: "🔗" },
+  { href: "/quiz", label: "퀴즈" },
+  { href: "/debate", label: "디베이트" },
+  { href: "/plan", label: "90일 플랜" },
+  { href: "/market", label: "시장 인사이트" },
+  { href: "/resources", label: "리소스" },
 ];
 
 export default function RootLayout({
@@ -30,23 +30,22 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-white/5">
-          <div className="max-w-6xl mx-auto px-4 h-12 flex items-center gap-1">
-            <Link
-              href="/"
-              className="text-sm font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent mr-4 shrink-0"
-            >
-              Next Step in Life
+        <nav className="sticky top-0 z-50 bg-[var(--bg)]/90 backdrop-blur-sm border-b border-[var(--line)]">
+          <div className="max-w-[980px] mx-auto px-6 h-14 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="w-[7px] h-[7px] rounded-full bg-gradient-to-br from-[var(--ink)] to-[var(--warm)]" />
+              <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+                Next Step in Life
+              </span>
             </Link>
 
-            <div className="flex items-center gap-0.5 overflow-x-auto">
+            <div className="flex items-center gap-1">
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-indigo-200/60 hover:text-indigo-100 hover:bg-white/5 transition-all whitespace-nowrap"
+                  className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
                 >
-                  <span>{item.icon}</span>
                   {item.label}
                 </Link>
               ))}
