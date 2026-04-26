@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>배포 파이프라인 가이드 - Vercel + Supabase</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            line-height: 1.7;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%);
+            border-bottom: 1px solid #30363d;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, #58a6ff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.15em;
+            color: #8b949e;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .hero .subtitle {
+            font-size: 0.95em;
+            color: #6e7681;
+            margin-top: 8px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* 아키텍처 다이어그램 */
+        .arch-diagram {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .arch-diagram h2 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #79c0ff;
+        }
+
+        .arch-boxes {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .arch-box {
+            background: #0d1117;
+            border: 2px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            min-width: 160px;
+            text-align: center;
+        }
+
+        .arch-box.vercel { border-color: #58a6ff; }
+        .arch-box.supabase { border-color: #3ecf8e; }
+        .arch-box.github { border-color: #8b949e; }
+
+        .arch-box .box-icon { font-size: 2em; margin-bottom: 8px; }
+        .arch-box .box-title { font-weight: 700; font-size: 1em; }
+        .arch-box .box-desc { font-size: 0.8em; color: #8b949e; margin-top: 4px; }
+
+        .arch-arrow {
+            font-size: 1.5em;
+            color: #484f58;
+        }
+
+        .arch-flow {
+            margin-top: 20px;
+            font-size: 0.85em;
+            color: #8b949e;
+            line-height: 1.8;
+        }
+
+        /* 단계 카드 */
+        .step-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #58a6ff, #a78bfa);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1em;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.25em;
+            font-weight: 700;
+        }
+
+        .step-card p, .step-card li {
+            color: #c9d1d9;
+            font-size: 0.95em;
+        }
+
+        .step-card ol, .step-card ul {
+            padding-left: 20px;
+            margin-top: 12px;
+        }
+
+        .step-card li {
+            margin-bottom: 10px;
+        }
+
+        /* 코드 블록 */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 12px 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.88em;
+            overflow-x: auto;
+            color: #79c0ff;
+            line-height: 1.6;
+        }
+
+        .code-block .comment { color: #6e7681; }
+        .code-block .key { color: #ff7b72; }
+        .code-block .value { color: #a5d6ff; }
+        .code-block .cmd { color: #79c0ff; }
+
+        /* 환경변수 테이블 */
+        .env-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9em;
+        }
+
+        .env-table th {
+            background: #0d1117;
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid #30363d;
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        .env-table td {
+            padding: 10px 14px;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+
+        .env-table code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.92em;
+            color: #ff7b72;
+        }
+
+        /* 경고/정보 박스 */
+        .callout {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 0.92em;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .callout-warn {
+            background: #f0883e15;
+            border: 1px solid #f0883e40;
+            color: #f0883e;
+        }
+
+        .callout-info {
+            background: #58a6ff15;
+            border: 1px solid #58a6ff40;
+            color: #79c0ff;
+        }
+
+        .callout-success {
+            background: #3ecf8e15;
+            border: 1px solid #3ecf8e40;
+            color: #3ecf8e;
+        }
+
+        .callout-icon { font-size: 1.2em; flex-shrink: 0; margin-top: 2px; }
+
+        /* 스크린샷 가이드 */
+        .screenshot-guide {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+        }
+
+        .screenshot-guide .nav-path {
+            font-size: 0.9em;
+            color: #8b949e;
+            margin-bottom: 8px;
+        }
+
+        .screenshot-guide .nav-path span {
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        .screenshot-guide .action {
+            color: #c9d1d9;
+            font-size: 0.95em;
+        }
+
+        /* 플로우 다이어그램 */
+        .flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .flow-item {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            text-align: center;
+            color: #c9d1d9;
+        }
+
+        .flow-arrow { color: #484f58; font-size: 1.2em; }
+
+        /* 섹션 구분 */
+        .section-divider {
+            border: none;
+            border-top: 1px solid #21262d;
+            margin: 40px 0;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #a78bfa;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* FAQ */
+        .faq-item {
+            margin-bottom: 20px;
+        }
+
+        .faq-q {
+            font-weight: 700;
+            color: #58a6ff;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+        }
+
+        .faq-a {
+            color: #8b949e;
+            font-size: 0.9em;
+            padding-left: 16px;
+            border-left: 2px solid #30363d;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 1.8em; }
+            .arch-boxes { flex-direction: column; }
+            .arch-arrow { transform: rotate(90deg); }
+            .step-title { font-size: 1.1em; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>배포 파이프라인 가이드</h1>
+    <p>Vercel + Supabase로 개인 브랜치 자동 배포 세팅하기</p>
+    <p class="subtitle">Next Step in Life — AIBizTeam9</p>
+</div>
+
+<div class="container">
+
+    <!-- 아키텍처 다이어그램 -->
+    <div class="arch-diagram">
+        <h2>우리 프로젝트 구조</h2>
+        <div class="arch-boxes">
+            <div class="arch-box github">
+                <div class="box-icon">🐙</div>
+                <div class="box-title">GitHub</div>
+                <div class="box-desc">코드 저장소<br>각자 브랜치에서 작업</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-box vercel">
+                <div class="box-icon">▲</div>
+                <div class="box-title">Vercel</div>
+                <div class="box-desc">웹사이트 호스팅<br>push하면 자동 배포</div>
+            </div>
+            <div class="arch-arrow">↔</div>
+            <div class="arch-box supabase">
+                <div class="box-icon">⚡</div>
+                <div class="box-title">Supabase</div>
+                <div class="box-desc">PostgreSQL DB<br>대화/세션 데이터 저장</div>
+            </div>
+        </div>
+        <div class="arch-flow">
+            <strong>흐름:</strong> 코드 수정 → Git push → Vercel 자동 빌드 → 배포 완료 (URL 생성) → Supabase DB 연동
+        </div>
+    </div>
+
+    <!-- STEP 1: Vercel 가입 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">Vercel 가입</div>
+        </div>
+        <ol>
+            <li><a href="https://vercel.com" style="color:#58a6ff">https://vercel.com</a> 접속</li>
+            <li><strong>Sign Up</strong> → <strong>Continue with GitHub</strong> 클릭</li>
+            <li>GitHub 계정으로 로그인하면 가입 완료</li>
+        </ol>
+    </div>
+
+    <!-- STEP 2: 프로젝트 연결 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">GitHub 저장소 연결</div>
+        </div>
+        <ol>
+            <li>Vercel 대시보드에서 <strong>Add New...</strong> → <strong>Project</strong></li>
+            <li><strong>Import Git Repository</strong> → <strong>AIBizTeam9/team9</strong> 선택</li>
+            <li>Framework는 <strong>Next.js</strong> (자동 감지됨) 확인 후 <strong>Deploy</strong> 클릭</li>
+        </ol>
+
+        <div class="callout callout-info">
+            <span class="callout-icon">💡</span>
+            <span>저장소가 안 보이면 <strong>Adjust GitHub App Permissions</strong>를 클릭해서 AIBizTeam9 organization에 접근 권한을 추가하세요.</span>
+        </div>
+    </div>
+
+    <!-- STEP 3: 환경변수 설정 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">Vercel 환경변수 설정</div>
+        </div>
+
+        <p>Supabase DB에 연결하기 위한 환경변수를 설정합니다.</p>
+
+        <div class="screenshot-guide">
+            <div class="nav-path">
+                Vercel 대시보드 → 프로젝트 클릭 → 왼쪽 메뉴 <span>Settings</span> → <span>Environment Variables</span>
+            </div>
+        </div>
+
+        <p>아래 2개의 환경변수를 추가하세요:</p>
+
+        <table class="env-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
+                    <td>카카오톡으로 전달받은 값</td>
+                </tr>
+                <tr>
+                    <td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td>
+                    <td>카카오톡으로 전달받은 값</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-warn">
+            <span class="callout-icon">📱</span>
+            <span><strong>키 값은 동근이가 카카오톡으로 전달합니다.</strong> Key 이름은 위 표 그대로 복사하고, Value만 카톡에서 받은 값을 붙여넣으세요. 모든 팀원이 같은 DB를 공유합니다.</span>
+        </div>
+
+        <p>각 환경변수 추가할 때:</p>
+        <ol>
+            <li><strong>Key</strong>에 변수 이름 입력 (예: <code>NEXT_PUBLIC_SUPABASE_URL</code>)</li>
+            <li><strong>Value</strong>에 카톡에서 받은 값 붙여넣기</li>
+            <li>Environment는 <strong>모두 체크</strong> (Production, Preview, Development)</li>
+            <li><strong>Save</strong> 클릭</li>
+        </ol>
+    </div>
+
+    <!-- STEP 4: Deploy Hook 생성 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">내 브랜치 배포 연결 (Deploy Hook)</div>
+        </div>
+
+        <p>자기 브랜치에 push할 때마다 자동으로 배포되도록 webhook을 만듭니다.</p>
+
+        <div class="screenshot-guide">
+            <div class="nav-path">
+                Vercel 대시보드 → 프로젝트 → <span>Settings</span> → <span>Git</span> → 아래로 스크롤 → <strong>Deploy Hooks</strong>
+            </div>
+        </div>
+
+        <ol>
+            <li><strong>Name</strong>에 본인 이름 입력 (예: <code>jiyun</code>, <code>jaerim</code>, <code>seokbin</code>)</li>
+            <li><strong>Branch</strong>에 본인 브랜치 이름 입력 (예: <code>jiyun</code>)</li>
+            <li><strong>Create Hook</strong> 클릭</li>
+        </ol>
+
+        <div class="callout callout-info">
+            <span class="callout-icon">💡</span>
+            <span>이렇게 하면 본인 브랜치에 git push할 때마다 Vercel이 자동으로 빌드하고 배포합니다. 배포된 사이트는 Vercel 대시보드 → <strong>Deployments</strong> 에서 확인할 수 있어요.</span>
+        </div>
+    </div>
+
+    <!-- STEP 5: 로컬 환경변수 설정 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">로컬 개발 환경변수 설정 (바이브 코딩용)</div>
+        </div>
+
+        <p>Vercel에 배포할 때는 위에서 설정한 환경변수가 자동으로 적용되지만, <strong>내 PC에서 개발할 때</strong>는 별도로 파일을 만들어야 합니다.</p>
+
+        <h3 style="margin: 16px 0 8px; color: #a78bfa; font-size: 1em;">방법: .env.local 파일 만들기</h3>
+
+        <p>프로젝트 최상위 폴더 (<code>team9/</code>)에 <code>.env.local</code> 파일을 만들고, 카카오톡으로 받은 내용을 통째로 붙여넣으세요.</p>
+
+        <div class="code-block">
+            <span class="comment"># 카카오톡으로 받은 내용을 그대로 붙여넣으세요</span><br>
+            <span class="key">NEXT_PUBLIC_SUPABASE_URL</span>=<span class="value">https://xxxxx.supabase.co</span><br>
+            <span class="key">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>=<span class="value">eyJhbG...긴키값</span>
+        </div>
+
+        <div class="callout callout-warn">
+            <span class="callout-icon">⚠️</span>
+            <span><strong>동근이가 카카오톡으로 KEY=VALUE 뭉태기를 보내드립니다.</strong> 그 내용을 <code>.env.local</code> 파일에 그대로 붙여넣기만 하면 됩니다. 직접 값을 입력할 필요 없어요!</span>
+        </div>
+
+        <h3 style="margin: 16px 0 8px; color: #a78bfa; font-size: 1em;">VS Code에서 파일 만드는 방법</h3>
+        <ol>
+            <li>VS Code에서 프로젝트 폴더 열기</li>
+            <li>왼쪽 파일 탐색기에서 <strong>team9</strong> 폴더 우클릭 → <strong>New File</strong></li>
+            <li>파일 이름: <code>.env.local</code> (앞에 점 필수!)</li>
+            <li>카카오톡에서 받은 내용 붙여넣기 → 저장 (Ctrl+S)</li>
+        </ol>
+
+        <div class="callout callout-success">
+            <span class="callout-icon">✅</span>
+            <span>이 파일은 <code>.gitignore</code>에 등록되어 있어서 GitHub에 올라가지 않습니다. 안심하세요!</span>
+        </div>
+    </div>
+
+    <!-- STEP 6: 확인 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">6</div>
+            <div class="step-title">배포 확인</div>
+        </div>
+
+        <p>모든 설정이 끝나면, 코드를 수정하고 push해보세요:</p>
+
+        <div class="code-block">
+            <span class="comment"># 터미널에서 (또는 VS Code 소스 제어 탭에서)</span><br>
+            <span class="cmd">git add .</span><br>
+            <span class="cmd">git commit -m "test: 배포 테스트"</span><br>
+            <span class="cmd">git push origin 내브랜치이름</span>
+        </div>
+
+        <p>그 다음 Vercel 대시보드 → <strong>Deployments</strong> 에서 빌드가 진행되는 걸 확인하세요.</p>
+
+        <div class="flow">
+            <div class="flow-item">코드 수정</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-item">git push</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-item">Vercel 자동 빌드<br><small style="color:#8b949e">(1~2분)</small></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-item" style="border-color:#3ecf8e">🎉 배포 완료!<br><small style="color:#8b949e">URL 생성됨</small></div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 전체 흐름 요약 -->
+    <div class="section-title">📋 체크리스트</div>
+
+    <div class="step-card" style="background: #0d1117;">
+        <ol>
+            <li>☐ Vercel 가입 (GitHub 계정으로)</li>
+            <li>☐ 프로젝트 연결 (AIBizTeam9/team9)</li>
+            <li>☐ 환경변수 2개 추가 (카톡에서 받은 값)</li>
+            <li>☐ Deploy Hook 생성 (내 브랜치 이름으로)</li>
+            <li>☐ <code>.env.local</code> 파일 생성 (카톡에서 받은 내용 붙여넣기)</li>
+            <li>☐ 테스트 push → Vercel에서 배포 확인</li>
+        </ol>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- FAQ -->
+    <div class="section-title">❓ FAQ</div>
+
+    <div class="faq-item">
+        <div class="faq-q">Q. 배포된 사이트 URL은 어디서 봐요?</div>
+        <div class="faq-a">Vercel 대시보드 → Deployments → 가장 최근 배포 클릭 → 상단에 URL이 표시됩니다.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Q. .env.local 파일이 GitHub에 올라가면 어떡해요?</div>
+        <div class="faq-a">.gitignore에 이미 등록되어 있어서 올라가지 않습니다. 만약 실수로 올라갔다면 동근이에게 알려주세요.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Q. 빌드가 실패하면?</div>
+        <div class="faq-a">Vercel 대시보드 → Deployments → 실패한 배포 클릭 → 로그를 확인하세요. 에러 메시지를 Copilot에게 보여주면 해결 방법을 알려줍니다.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Q. 환경변수를 바꿨는데 반영이 안 돼요</div>
+        <div class="faq-a">환경변수를 바꾼 후에는 다시 배포해야 적용됩니다. Deployments에서 가장 최근 배포의 ... 메뉴 → Redeploy를 클릭하세요.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Q. 같은 저장소를 여러 명이 연결해도 되나요?</div>
+        <div class="faq-a">네! 각자 본인의 Vercel 계정에서 같은 GitHub 저장소를 연결하면 됩니다. Deploy Hook을 각자 브랜치로 만들면 각자의 배포가 독립적으로 동작합니다.</div>
+    </div>
+
+</div>
+
+</body>
+</html>
