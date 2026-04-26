@@ -45,8 +45,6 @@ export function getCategoryMeta(key: CategoryKey): CategoryMeta {
 
 // ── 데이터 fetch ──
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
-
 export async function fetchResources(
   category?: CategoryKey,
   keyword?: string,
@@ -56,7 +54,7 @@ export async function fetchResources(
   if (keyword) params.set("keyword", keyword);
 
   const qs = params.toString();
-  const url = `${API_BASE}/api/resources${qs ? `?${qs}` : ""}`;
+  const url = `/api/resources${qs ? `?${qs}` : ""}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`리소스 로드 실패: ${res.status}`);
