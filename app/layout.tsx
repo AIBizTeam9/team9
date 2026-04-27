@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import AuthButton from "@/components/auth-button";
 import "./globals.css";
 
 const inter = Inter({
@@ -49,6 +50,9 @@ export default function RootLayout({
                   {item.label}
                 </Link>
               ))}
+              <div className="ml-2 pl-2 border-l border-[var(--line)]">
+                <AuthButton />
+              </div>
             </div>
           </div>
         </nav>
