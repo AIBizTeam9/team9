@@ -58,8 +58,14 @@ app/api/personas/route.ts 파일을 만들어줘.
 커밋 메시지는 "feat: 퀴즈 & 페르소나 생성 구현"으로.
 브랜치는 jiyun.
 
+## DB 사용법 (Prisma)
+테이블 구조는 `prisma/schema.prisma`에 정의되어 있습니다.
+- 테이블을 추가/변경하려면 schema.prisma를 수정하고 `npx prisma db push` 실행
+- 데이터 조회/저장은 `lib/prisma.ts`의 prisma 클라이언트 사용
+- 예시: `await prisma.session.create({ data: { quizAnswers: answers } })`
+
 ## 사용할 수 있는 공용 모듈
+- `lib/prisma.ts` — Prisma DB 클라이언트 (세션, 대화 CRUD)
 - `lib/sessions.ts` — Supabase 세션 저장/불러오기
 - `lib/resources.ts` — 외부 리소스 데이터
 - `lib/market.ts` — 시장 데이터
-- `lib/supabase.ts` — Supabase 클라이언트

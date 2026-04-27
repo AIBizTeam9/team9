@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Session {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  quizAnswers Json?    @map("quiz_answers")
+  personaA    Json?    @map("persona_a")
+  personaB    Json?    @map("persona_b")
+  insight     Json?
+
+  conversations Conversation[]
+
+  @@map("sessions")
+}
+
+model Conversation {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  speaker   String
+  content   String
+  turnOrder Int      @map("turn_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("conversations")
+}

@@ -38,3 +38,5 @@ Thumbs.db
 .vercel/
 .netlify/
 .claude/
+
+/lib/generated/prisma
