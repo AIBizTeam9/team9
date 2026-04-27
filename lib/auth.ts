@@ -1,7 +1,8 @@
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export async function signInWithGoogle() {
+  const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -13,12 +14,14 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
+  const supabase = getSupabase();
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
 export async function getUser() {
+  const supabase = getSupabase();
   if (!supabase) return null;
   const {
     data: { user },
@@ -27,6 +30,7 @@ export async function getUser() {
 }
 
 export function onAuthChange(callback: (user: unknown) => void) {
+  const supabase = getSupabase();
   if (!supabase) {
     return { data: { subscription: { unsubscribe: () => {} } } };
   }
