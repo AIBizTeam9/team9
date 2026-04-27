@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/plan", label: "90일 플랜" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
+  { href: "/docs/setup-guide.html", label: "가이드" },
 ];
 
 export default function RootLayout({
@@ -41,15 +42,25 @@ export default function RootLayout({
             </Link>
 
             <div className="flex items-center gap-1">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {NAV_ITEMS.map((item) =>
+                item.href.endsWith(".html") ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
+                  >
+                    {item.label}
+                  </Link>
+                ),
+              )}
               <div className="ml-2 pl-2 border-l border-[var(--line)]">
                 <AuthButton />
               </div>
