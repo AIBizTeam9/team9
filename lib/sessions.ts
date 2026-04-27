@@ -17,7 +17,7 @@
  *   const all = await listSessions();
  */
 
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export interface SessionData {
   id: string;
@@ -39,6 +39,9 @@ export async function createSession(
   personaB: Record<string, unknown>,
   insight: Record<string, unknown>,
 ): Promise<SessionData> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
+
   const { data, error } = await supabase
     .from("sessions")
     .insert({
@@ -65,11 +68,17 @@ export async function saveConversation(
     turn_order: i,
   }));
 
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
+
   const { error } = await supabase.from("conversations").insert(rows);
   if (error) throw new Error(`대화 저장 실패: ${error.message}`);
 }
 
 export async function getSession(sessionId: string) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
+
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
     .select("*")
@@ -90,6 +99,9 @@ export async function getSession(sessionId: string) {
 }
 
 export async function listSessions(limit = 20): Promise<SessionData[]> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
+
   const { data, error } = await supabase
     .from("sessions")
     .select("*")
