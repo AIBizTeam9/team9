@@ -1,3 +1,4 @@
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 export async function signInWithGoogle() {
@@ -23,7 +24,7 @@ export async function getUser() {
 }
 
 export function onAuthChange(callback: (user: unknown) => void) {
-  return supabase.auth.onAuthStateChange((_event, session) => {
+  return supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
     callback(session?.user ?? null);
   });
 }
