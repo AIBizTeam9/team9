@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR(Pull Request) & 코드 리뷰 가이드 - AIBizTeam9</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            line-height: 1.7;
+            padding: 0;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%);
+            border-bottom: 1px solid #30363d;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, #3fb950, #58a6ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.15em;
+            color: #8b949e;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .hero .subtitle {
+            font-size: 0.95em;
+            color: #6e7681;
+            margin-top: 8px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        .intro-box {
+            background: linear-gradient(135deg, rgba(63, 185, 80, 0.08), rgba(88, 166, 255, 0.04));
+            border: 1px solid rgba(63, 185, 80, 0.3);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 36px;
+        }
+
+        .intro-box h2 {
+            color: #3fb950;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+        }
+
+        .intro-box p {
+            color: #c9d1d9;
+            font-size: 1em;
+            margin-bottom: 8px;
+        }
+
+        .step {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 28px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+
+        .step:hover {
+            border-color: #58a6ff;
+        }
+
+        .step-number {
+            position: absolute;
+            top: -16px;
+            left: 24px;
+            background: #238636;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+
+        .step h2 {
+            font-size: 1.4em;
+            color: #f0f6fc;
+            margin-bottom: 16px;
+            padding-left: 4px;
+        }
+
+        .step h3 {
+            font-size: 1.1em;
+            color: #e6edf3;
+            margin: 20px 0 10px;
+        }
+
+        .step p, .step li {
+            color: #c9d1d9;
+            font-size: 1em;
+        }
+
+        .step ul, .step ol {
+            padding-left: 24px;
+            margin: 12px 0;
+        }
+
+        .step li {
+            margin-bottom: 10px;
+        }
+
+        .highlight-box {
+            background: rgba(56, 139, 253, 0.1);
+            border: 1px solid rgba(56, 139, 253, 0.4);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .highlight-box.warning {
+            background: rgba(210, 153, 34, 0.1);
+            border-color: rgba(210, 153, 34, 0.4);
+        }
+
+        .highlight-box.success {
+            background: rgba(35, 134, 54, 0.1);
+            border-color: rgba(35, 134, 54, 0.4);
+        }
+
+        .highlight-box.danger {
+            background: rgba(248, 81, 73, 0.1);
+            border-color: rgba(248, 81, 73, 0.4);
+        }
+
+        .highlight-box.purple {
+            background: rgba(163, 113, 247, 0.1);
+            border-color: rgba(163, 113, 247, 0.4);
+        }
+
+        .highlight-box strong {
+            color: #58a6ff;
+        }
+
+        .highlight-box.warning strong {
+            color: #d29922;
+        }
+
+        .highlight-box.success strong {
+            color: #3fb950;
+        }
+
+        .highlight-box.danger strong {
+            color: #f85149;
+        }
+
+        .highlight-box.purple strong {
+            color: #a371f7;
+        }
+
+        .divider {
+            height: 1px;
+            background: #30363d;
+            margin: 20px 0;
+        }
+
+        .step-group-title {
+            text-align: center;
+            font-size: 0.85em;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 48px 0 24px;
+            font-weight: 600;
+        }
+
+        .step-group-title span {
+            background: #0d1117;
+            padding: 0 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-group-title::before {
+            content: '';
+            display: block;
+            height: 1px;
+            background: #30363d;
+            margin-top: 10px;
+            position: relative;
+            top: 22px;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 20px 0;
+            padding: 16px;
+        }
+
+        .flow-step {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.9em;
+            color: #c9d1d9;
+            text-align: center;
+        }
+
+        .flow-arrow {
+            color: #58a6ff;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .keyboard-shortcut {
+            display: inline-block;
+            background: #30363d;
+            border: 1px solid #484f58;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            color: #e6edf3;
+            margin: 0 2px;
+        }
+
+        .analogy-box {
+            background: #1c2128;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+
+        .analogy-box .title {
+            color: #ffa657;
+            font-weight: 700;
+            font-size: 1.05em;
+            margin-bottom: 10px;
+        }
+
+        .analogy-box p {
+            color: #c9d1d9;
+            font-size: 0.95em;
+        }
+
+        .role-card {
+            display: inline-block;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 8px;
+            min-width: 200px;
+            vertical-align: top;
+        }
+
+        .role-card .role-title {
+            font-weight: 700;
+            font-size: 1.05em;
+            margin-bottom: 6px;
+        }
+
+        .role-card .role-desc {
+            color: #8b949e;
+            font-size: 0.9em;
+        }
+
+        .screenshot-guide {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .screenshot-guide .label {
+            color: #8b949e;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .screenshot-guide .action {
+            color: #79c0ff;
+            font-size: 1em;
+            line-height: 1.8;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 4px 4px 4px 0;
+        }
+
+        .badge-open {
+            background: rgba(63, 185, 80, 0.15);
+            color: #3fb950;
+            border: 1px solid rgba(63, 185, 80, 0.4);
+        }
+
+        .badge-review {
+            background: rgba(210, 153, 34, 0.15);
+            color: #d29922;
+            border: 1px solid rgba(210, 153, 34, 0.4);
+        }
+
+        .badge-approved {
+            background: rgba(63, 185, 80, 0.15);
+            color: #3fb950;
+            border: 1px solid rgba(63, 185, 80, 0.4);
+        }
+
+        .badge-merged {
+            background: rgba(163, 113, 247, 0.15);
+            color: #a371f7;
+            border: 1px solid rgba(163, 113, 247, 0.4);
+        }
+
+        .badge-rejected {
+            background: rgba(248, 81, 73, 0.15);
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+
+        .rule-box {
+            background: #1c2128;
+            border-left: 4px solid #f85149;
+            border-radius: 0 8px 8px 0;
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .rule-box .rule-title {
+            color: #f85149;
+            font-weight: 700;
+            font-size: 1em;
+            margin-bottom: 8px;
+        }
+
+        .rule-box p, .rule-box li {
+            color: #c9d1d9;
+            font-size: 0.95em;
+        }
+
+        .rule-box ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+
+        .rule-box li {
+            margin-bottom: 6px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 32px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 11px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #30363d;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #30363d;
+            border: 2px solid #0d1117;
+        }
+
+        .timeline-item.active::before {
+            background: #3fb950;
+        }
+
+        .timeline-item .tl-title {
+            color: #e6edf3;
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        .timeline-item .tl-desc {
+            color: #8b949e;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #484f58;
+            font-size: 0.85em;
+            border-top: 1px solid #21262d;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 1.6em; }
+            .step { padding: 24px 18px; }
+            .role-card { display: block; margin: 8px 0; }
+            .flow-diagram { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>PR & 코드 리뷰 가이드</h1>
+    <p>팀원의 승인 없이는 코드가 반영되지 않습니다.<br>안전한 협업을 위한 PR 프로세스를 알아보세요.</p>
+    <p class="subtitle">Pull Request &middot; Code Review &middot; Approve &middot; Merge &mdash; AIBizTeam9</p>
+</div>
+
+<div class="container">
+
+    <!-- ==================== 개념 설명 ==================== -->
+    <div class="intro-box">
+        <h2>왜 바로 반영이 안 되는 걸까?</h2>
+        <p>우리 저장소의 <code>main</code> 브랜치는 <strong>보호(protected)</strong>되어 있습니다. 아무나 직접 코드를 올리면 실수로 서비스가 망가질 수 있기 때문입니다.</p>
+        <p>그래서 모든 코드는 <strong>최소 1명의 팀원이 확인(Approve)한 뒤에만</strong> main에 반영됩니다.</p>
+        <p style="margin-top: 12px; color: #8b949e;">이 과정을 <strong>PR(Pull Request) &rarr; Code Review &rarr; Approve &rarr; Merge</strong>라고 합니다.</p>
+    </div>
+
+    <!-- ==================== 비유로 이해하기 ==================== -->
+    <div class="step">
+        <h2><span class="emoji">&#128161;</span> 비유로 이해하기</h2>
+
+        <div class="analogy-box">
+            <div class="title">&#128221; 팀 보고서에 비유하면...</div>
+            <p><strong>main 브랜치</strong> = 교수님께 제출하는 <strong>최종 보고서</strong></p>
+            <p><strong>내 브랜치</strong> = 내가 작업하는 <strong>초안 문서</strong></p>
+            <p><strong>PR(Pull Request)</strong> = "내 초안을 최종 보고서에 넣어주세요" 라는 <strong>요청서</strong></p>
+            <p><strong>Code Review</strong> = 팀원이 초안을 <strong>읽어보고 검토</strong>하는 것</p>
+            <p><strong>Approve</strong> = "괜찮아 보여, <strong>넣어도 돼</strong>" 라는 승인</p>
+            <p><strong>Merge</strong> = 승인 받은 초안을 <strong>최종 보고서에 합치는</strong> 것</p>
+        </div>
+
+        <div class="analogy-box">
+            <div class="title">&#127850; 더 쉬운 비유</div>
+            <p>카페에서 새 메뉴를 추가한다고 상상해보세요.</p>
+            <p style="margin-top: 8px;">
+                1. 직원(나)이 새 레시피를 만듦 &rarr; <strong>내 브랜치에서 코딩</strong><br>
+                2. "이 메뉴 추가해도 될까요?" 요청 &rarr; <strong>PR 생성</strong><br>
+                3. 매니저(팀원)가 레시피를 맛보고 검토 &rarr; <strong>Code Review</strong><br>
+                4. "OK, 메뉴판에 올려" 승인 &rarr; <strong>Approve</strong><br>
+                5. 메뉴판에 정식 등록 &rarr; <strong>Merge</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- ==================== 우리 팀 규칙 ==================== -->
+    <div class="step-group-title"><span>우리 저장소의 규칙</span></div>
+
+    <div class="step">
+        <h2><span class="emoji">&#128220;</span> 브랜치 보호 규칙</h2>
+        <p>우리 저장소 <code>main</code> 브랜치에는 다음 규칙이 적용되어 있습니다:</p>
+
+        <div class="rule-box">
+            <div class="rule-title">&#128683; 규칙 1: main에 직접 push 금지</div>
+            <p><code>main</code> 브랜치에 직접 코드를 올릴 수 없습니다. 반드시 <strong>본인 브랜치</strong>에서 작업하고 <strong>PR</strong>을 통해 반영해야 합니다.</p>
+        </div>
+
+        <div class="rule-box">
+            <div class="rule-title">&#9989; 규칙 2: 최소 1명의 승인(Approve) 필수</div>
+            <p>PR을 올리면, <strong>다른 팀원 최소 1명</strong>이 코드를 확인하고 <strong>"Approve"</strong>를 눌러야 main에 합칠(Merge) 수 있습니다.</p>
+            <ul>
+                <li>본인이 올린 PR은 본인이 승인할 수 없습니다.</li>
+                <li>승인 없이는 Merge 버튼이 비활성화됩니다.</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box">
+            <strong>왜 이런 규칙이 있을까?</strong><br>
+            <ul style="margin-top: 8px; padding-left: 20px;">
+                <li>실수로 버그가 있는 코드가 main에 들어가는 것을 방지</li>
+                <li>팀원 모두가 코드 변경 사항을 파악할 수 있음</li>
+                <li>실무에서도 동일한 방식으로 협업하므로, 미리 익히는 연습</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ==================== 전체 흐름 ==================== -->
+    <div class="step">
+        <h2><span class="emoji">&#128260;</span> 전체 흐름</h2>
+        <div class="flow-diagram">
+            <div class="flow-step" style="border-color: #58a6ff;">내 브랜치에서<br>코드 작성</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #58a6ff;">Push</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #3fb950;">PR 생성</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #d29922;">팀원이<br>코드 리뷰</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #3fb950;">Approve<br>(승인)</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-step" style="border-color: #a371f7;">Merge<br>(반영!)</div>
+        </div>
+
+        <p style="text-align: center; color: #8b949e; margin-top: 8px;">PR의 상태는 다음과 같이 변합니다:</p>
+        <p style="text-align: center; margin-top: 12px;">
+            <span class="status-badge badge-open">Open</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="status-badge badge-review">Review 요청됨</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="status-badge badge-approved">Approved</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="status-badge badge-merged">Merged</span>
+        </p>
+    </div>
+
+    <!-- ==================== 역할 설명 ==================== -->
+    <div class="step">
+        <h2><span class="emoji">&#128101;</span> 두 가지 역할</h2>
+        <p>PR 과정에서 팀원은 두 가지 역할을 번갈아 하게 됩니다:</p>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <div class="role-card" style="border-color: #58a6ff;">
+                <div class="role-title" style="color: #58a6ff;">&#128221; PR 작성자</div>
+                <div class="role-desc">내가 만든 코드를 올리는 사람<br>"이거 확인해주세요!"</div>
+            </div>
+            <div class="role-card" style="border-color: #3fb950;">
+                <div class="role-title" style="color: #3fb950;">&#128269; 리뷰어 (Reviewer)</div>
+                <div class="role-desc">팀원의 코드를 확인하는 사람<br>"확인했어, 좋아 보여!"</div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <strong>모든 팀원이 두 역할 모두 해야 합니다.</strong> 내 코드를 올리기도 하고, 다른 팀원의 코드를 검토해주기도 합니다.
+        </div>
+    </div>
+
+    <!-- ==================== PR 작성자 가이드 ==================== -->
+    <div class="step-group-title"><span>역할 A &mdash; PR 작성자 (코드를 올리는 사람)</span></div>
+
+    <div class="step">
+        <div class="step-number">1</div>
+        <h2><span class="emoji">&#128640;</span> PR 만드는 법</h2>
+        <p>본인 브랜치에서 작업을 완료하고 push한 뒤, GitHub에서 PR을 생성합니다.</p>
+
+        <h3>방법 A: GitHub에서 뜨는 알림 이용 (가장 쉬움)</h3>
+        <ol>
+            <li>push 후 <a href="https://github.com/AIBizTeam9/team9" style="color: #58a6ff;">GitHub 저장소 페이지</a>에 접속합니다.</li>
+            <li>상단에 노란색 배너가 뜹니다: <strong>"본인브랜치 had recent pushes &mdash; Compare & pull request"</strong></li>
+            <li><strong>"Compare & pull request"</strong> 초록색 버튼을 클릭합니다.</li>
+        </ol>
+
+        <h3>방법 B: 직접 PR 생성</h3>
+        <ol>
+            <li>저장소 페이지에서 <strong>"Pull requests"</strong> 탭을 클릭합니다.</li>
+            <li><strong>"New pull request"</strong> 초록색 버튼을 클릭합니다.</li>
+            <li><strong>base:</strong> <code>main</code> &larr; <strong>compare:</strong> <code>본인브랜치</code> 를 선택합니다.</li>
+            <li><strong>"Create pull request"</strong>를 클릭합니다.</li>
+        </ol>
+
+        <h3>PR 작성 시 입력할 내용</h3>
+        <div class="screenshot-guide">
+            <div class="label">작성 항목</div>
+            <div class="action">
+                <strong>Title (제목):</strong> 무엇을 했는지 한 줄 요약<br>
+                &nbsp;&nbsp;예: "퀴즈 페이지 UI 추가"<br><br>
+                <strong>Description (설명):</strong> 자세한 변경 내용<br>
+                &nbsp;&nbsp;예: "5개 질문을 순서대로 보여주는 퀴즈 페이지를 만들었습니다"<br><br>
+                <strong>Reviewers (검토자):</strong> 우측 사이드바에서 팀원을 선택<br>
+                &nbsp;&nbsp;&rarr; 리뷰해줄 팀원을 지정합니다
+            </div>
+        </div>
+
+        <div class="highlight-box success">
+            <strong>PR 생성 완료!</strong> 이제 팀원이 리뷰하고 Approve해줄 때까지 기다립니다.<br>
+            카톡이나 슬랙으로 "PR 올렸어, 리뷰 부탁해!" 라고 알려주면 더 빨라집니다.
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-number">2</div>
+        <h2><span class="emoji">&#128172;</span> 리뷰 피드백 반영하기</h2>
+        <p>팀원이 코드에 수정 요청(Request Changes)을 남길 수도 있습니다. 이때 당황하지 마세요!</p>
+
+        <ol>
+            <li>PR 페이지에서 팀원이 남긴 <strong>코멘트</strong>를 확인합니다.</li>
+            <li>VS Code로 돌아가서 해당 부분을 수정합니다.</li>
+            <li>수정한 코드를 다시 <strong>commit &amp; push</strong>합니다.</li>
+            <li>PR에 수정한 내용이 <strong>자동으로 반영</strong>됩니다. (새로 PR을 만들 필요 없음!)</li>
+        </ol>
+
+        <div class="highlight-box">
+            <strong>같은 브랜치에 push하면 PR이 자동 업데이트됩니다.</strong> PR을 새로 만들지 마세요!
+        </div>
+    </div>
+
+    <!-- ==================== 리뷰어 가이드 ==================== -->
+    <div class="step-group-title"><span>역할 B &mdash; 리뷰어 (코드를 확인하는 사람)</span></div>
+
+    <div class="step">
+        <div class="step-number">3</div>
+        <h2><span class="emoji">&#128269;</span> 코드 리뷰하는 법</h2>
+        <p>팀원이 PR을 올리면, 변경된 코드를 확인하고 의견을 남깁니다.</p>
+
+        <h3>리뷰 시작하기</h3>
+        <ol>
+            <li><a href="https://github.com/AIBizTeam9/team9/pulls" style="color: #58a6ff;">저장소의 Pull requests 탭</a>에 접속합니다.</li>
+            <li>리뷰할 PR을 클릭합니다.</li>
+            <li>상단의 <strong>"Files changed"</strong> 탭을 클릭합니다.</li>
+            <li>변경된 코드를 확인합니다:
+                <ul>
+                    <li style="color: #3fb950;"><strong>초록색 줄</strong> = 새로 추가된 코드</li>
+                    <li style="color: #f85149;"><strong>빨간색 줄</strong> = 삭제된 코드</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="highlight-box purple">
+            <strong>코딩을 몰라도 리뷰할 수 있어요!</strong> 바이브 코딩 프로젝트에서는 코드 문법보다 <strong>결과물이 제대로 동작하는지</strong>가 더 중요합니다. "이 기능이 잘 되는 것 같다" 또는 "이 부분 글씨가 이상하다" 같은 피드백도 훌륭한 리뷰입니다.
+        </div>
+
+        <h3>리뷰할 때 확인할 것</h3>
+        <ul>
+            <li>어떤 파일이 추가/수정되었는지 대략 확인</li>
+            <li>한국어 UI 텍스트에 오타가 없는지</li>
+            <li>PR 설명에 적힌 기능이 코드에 반영된 것 같은지</li>
+            <li>이상해 보이는 부분이 없는지 (파일이 너무 많이 삭제되었다거나)</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <div class="step-number">4</div>
+        <h2><span class="emoji">&#9989;</span> 승인(Approve) 또는 수정 요청하기</h2>
+        <p>코드를 확인한 후 판정을 내립니다.</p>
+
+        <h3>승인/수정 요청 방법</h3>
+        <ol>
+            <li><strong>"Files changed"</strong> 탭에서 코드를 확인한 뒤</li>
+            <li>우측 상단의 <strong>"Review changes"</strong> 초록색 버튼을 클릭합니다.</li>
+            <li>세 가지 옵션 중 하나를 선택합니다:</li>
+        </ol>
+
+        <div style="margin: 16px 0;">
+            <div class="role-card" style="border-color: #8b949e; min-width: 220px;">
+                <div class="role-title" style="color: #8b949e;">&#128172; Comment</div>
+                <div class="role-desc">의견만 남기기<br>(승인/거절 아님)</div>
+            </div>
+            <div class="role-card" style="border-color: #3fb950; min-width: 220px;">
+                <div class="role-title" style="color: #3fb950;">&#9989; Approve</div>
+                <div class="role-desc"><strong>승인!</strong> 코드 반영 OK<br>(이걸 눌러야 Merge 가능)</div>
+            </div>
+            <div class="role-card" style="border-color: #f85149; min-width: 220px;">
+                <div class="role-title" style="color: #f85149;">&#128260; Request Changes</div>
+                <div class="role-desc">수정 필요<br>(고친 뒤 다시 리뷰)</div>
+            </div>
+        </div>
+
+        <ol start="4">
+            <li>코멘트 입력창에 한 마디 남깁니다. (예: "확인했어, LGTM!", "잘 만들었다!")</li>
+            <li><strong>"Submit review"</strong> 버튼을 클릭합니다.</li>
+        </ol>
+
+        <div class="highlight-box">
+            <strong>LGTM이란?</strong> "Looks Good To Me"의 약자로, "나한테 좋아 보인다 = 승인" 이라는 뜻의 개발자 용어입니다.
+        </div>
+
+        <div class="highlight-box warning">
+            <strong>주의:</strong> "Comment"는 승인이 아닙니다! 반드시 <strong>"Approve"</strong>를 선택해야 Merge가 가능해집니다.
+        </div>
+    </div>
+
+    <!-- ==================== Merge ==================== -->
+    <div class="step-group-title"><span>최종 단계 &mdash; Merge (코드 반영)</span></div>
+
+    <div class="step">
+        <div class="step-number">5</div>
+        <h2><span class="emoji">&#127881;</span> Merge하기</h2>
+        <p>1명 이상의 Approve를 받으면 드디어 main에 코드를 합칠 수 있습니다!</p>
+
+        <ol>
+            <li>PR 페이지 하단으로 스크롤합니다.</li>
+            <li>초록색 <strong>"Merge pull request"</strong> 버튼이 활성화된 것을 확인합니다.</li>
+            <li>버튼을 클릭합니다.</li>
+            <li><strong>"Confirm merge"</strong>를 한 번 더 클릭합니다.</li>
+        </ol>
+
+        <div class="highlight-box success">
+            <strong>Merge 완료!</strong> 본인의 코드가 main에 성공적으로 반영되었습니다!<br>
+            PR 상태가 <span class="status-badge badge-merged">Merged</span>로 바뀌면 성공입니다.
+        </div>
+
+        <div class="highlight-box danger">
+            <strong>Merge 버튼이 회색이고 안 눌린다면?</strong><br>
+            &rarr; 아직 팀원의 Approve를 받지 못한 것입니다. 팀원에게 리뷰를 요청하세요!
+        </div>
+    </div>
+
+    <!-- ==================== 실전 시나리오 ==================== -->
+    <div class="step-group-title"><span>실전 시나리오</span></div>
+
+    <div class="step">
+        <h2><span class="emoji">&#127916;</span> 시나리오: 동근이 퀴즈 페이지를 만들었다</h2>
+
+        <div class="timeline">
+            <div class="timeline-item active">
+                <div class="tl-title">1. 동근: 본인 브랜치에서 코딩 &amp; push</div>
+                <div class="tl-desc">dongkeun 브랜치에서 퀴즈 페이지를 만들고 <code>git push</code></div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">2. 동근: GitHub에서 PR 생성</div>
+                <div class="tl-desc">제목: "퀴즈 페이지 추가" / Reviewer로 지윤을 지정</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">3. 동근 &rarr; 지윤: "PR 올렸어, 리뷰 부탁해!"</div>
+                <div class="tl-desc">카톡으로 알림</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">4. 지윤: PR 확인 &amp; 코드 리뷰</div>
+                <div class="tl-desc">Files changed 탭에서 변경된 내용 확인</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">5. 지윤: Approve 승인!</div>
+                <div class="tl-desc">Review changes &rarr; Approve &rarr; "LGTM!" &rarr; Submit review</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">6. 동근: Merge!</div>
+                <div class="tl-desc">Merge pull request 클릭 &rarr; main에 코드 반영 완료!</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="step">
+        <h2><span class="emoji">&#127916;</span> 시나리오: 수정 요청을 받았다</h2>
+
+        <div class="timeline">
+            <div class="timeline-item active">
+                <div class="tl-title">1. 재림: PR 올림</div>
+                <div class="tl-desc">결과 페이지 디자인 변경 PR을 생성</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">2. 석빈: 리뷰 후 수정 요청</div>
+                <div class="tl-desc">Request Changes &rarr; "버튼 색상이 배경과 너무 비슷해서 안 보여!"</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">3. 재림: 코드 수정 후 다시 push</div>
+                <div class="tl-desc">버튼 색상 수정 &rarr; commit &rarr; push (같은 브랜치에!)</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">4. 석빈: 다시 확인 후 Approve</div>
+                <div class="tl-desc">"이제 잘 보여, LGTM!"</div>
+            </div>
+            <div class="timeline-item active">
+                <div class="tl-title">5. 재림: Merge!</div>
+                <div class="tl-desc">수정된 코드가 main에 반영 완료</div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <strong>수정 요청은 나쁜 게 아닙니다!</strong> 더 좋은 코드를 만들기 위한 과정이에요. 편하게 의견을 주고받으세요.
+        </div>
+    </div>
+
+    <!-- ==================== 자주 묻는 질문 ==================== -->
+    <div class="step-group-title"><span>자주 묻는 질문</span></div>
+
+    <div class="step">
+        <h2><span class="emoji">&#10068;</span> FAQ</h2>
+
+        <h3>Q: PR을 올린 뒤에 코드를 더 수정해도 되나요?</h3>
+        <p>네! 같은 브랜치에 계속 push하면 PR에 자동으로 반영됩니다. 새 PR을 만들 필요 없어요.</p>
+
+        <div class="divider"></div>
+
+        <h3>Q: 누가 Merge 버튼을 누르나요?</h3>
+        <p>보통 <strong>PR을 올린 본인</strong>이 Approve를 받은 후 Merge합니다. 팀 내에서 다르게 정해도 괜찮습니다.</p>
+
+        <div class="divider"></div>
+
+        <h3>Q: Approve 없이 Merge할 수 있나요?</h3>
+        <p><strong>아니요.</strong> 우리 저장소는 최소 1명의 Approve가 없으면 Merge 버튼이 비활성화됩니다.</p>
+
+        <div class="divider"></div>
+
+        <h3>Q: 내가 올린 PR을 내가 Approve할 수 있나요?</h3>
+        <p><strong>아니요.</strong> 본인이 올린 PR은 본인이 승인할 수 없습니다. 반드시 다른 팀원이 해야 합니다.</p>
+
+        <div class="divider"></div>
+
+        <h3>Q: 리뷰를 빨리 받고 싶어요!</h3>
+        <p>PR을 올린 후 카톡/슬랙으로 팀원에게 직접 알려주세요. GitHub 알림은 놓치기 쉽습니다.</p>
+
+        <div class="divider"></div>
+
+        <h3>Q: Merge 후에 내 브랜치는 어떻게 되나요?</h3>
+        <p>Merge 후 GitHub에서 "Delete branch" 버튼이 나타납니다. 눌러서 정리해도 되고, 그대로 두고 계속 사용해도 됩니다.</p>
+        <p>계속 사용할 경우, 다음 작업 전에 main의 최신 코드를 가져오세요:</p>
+        <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 16px 20px; margin: 12px 0; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.95em;">
+            <code>
+                <span style="color: #ff7b72;">git checkout</span> <span style="color: #a5d6ff;">main</span><br>
+                <span style="color: #ff7b72;">git pull</span><br>
+                <span style="color: #ff7b72;">git checkout</span> <span style="color: #a5d6ff;">본인브랜치</span><br>
+                <span style="color: #ff7b72;">git merge</span> <span style="color: #a5d6ff;">main</span>
+            </code>
+        </div>
+    </div>
+
+    <!-- ==================== 한 줄 요약 ==================== -->
+    <div class="step" style="border-color: #3fb950;">
+        <h2><span class="emoji">&#128218;</span> 한 줄 요약</h2>
+        <div style="text-align: center; font-size: 1.15em; padding: 16px 0; color: #e6edf3;">
+            <strong>내 브랜치에서 코딩</strong> &rarr; <strong>Push</strong> &rarr; <strong>PR 생성</strong> &rarr; <strong>팀원 Approve</strong> &rarr; <strong>Merge</strong>
+        </div>
+        <p style="text-align: center; color: #8b949e; margin-top: 8px;">
+            이게 전부입니다! 팀원의 승인 한 번이면 코드가 반영됩니다.
+        </p>
+    </div>
+
+</div>
+
+<footer>
+    AIBizTeam9 &mdash; PR & 코드 리뷰 가이드
+</footer>
+
+</body>
+</html>
