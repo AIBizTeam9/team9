@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { href: "/plan", label: "90일 플랜" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
-  { href: "/docs/setup-guide.html", label: "가이드" },
+  { href: "/docs/setup-guide.html", label: "개발가이드" },
 ];
 
 export default function RootLayout({
