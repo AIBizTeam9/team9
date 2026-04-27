@@ -42,7 +42,21 @@ app/api/debate/route.ts 파일을 만들어줘.
 - 하단에 "90일 플랜 만들기" → /plan 이동
 - sessionId를 URL 파라미터로 전달
 
-### 4단계: 디자인 다듬기
+### 4단계: 로그인 사용자 — 내 디베이트 기록 & 공유
+로그인한 사용자의 디베이트 기록을 볼 수 있고, 결과를 공유할 수 있게 해줘.
+
+요구사항:
+- 디베이트 결과를 DB에 저장할 때 로그인 상태 확인 (`lib/auth.ts`의 `getUser()` 사용)
+- 로그인된 사용자면 conversations 저장 시 해당 세션의 user_id가 이미 연결되어 있음
+  - 세션 조회: `await prisma.session.findMany({ where: { userId: user.id }, include: { conversations: true } })`
+- 디베이트 페이지 상단에 "내 디베이트 기록" 버튼 추가 (로그인 시에만 표시)
+- 기록 목록: 날짜, 페르소나 A vs B 이름, 대화 턴 수
+- 카드 클릭 시 해당 디베이트 대화를 다시 재생 (읽기 전용)
+- 공유 기능: "결과 공유" 버튼 → 세션 ID 기반 공유 URL 생성
+  - `/debate?sessionId=xxx` 형태로 다른 사람도 디베이트 결과를 볼 수 있게
+- 비로그인 사용자도 디베이트는 가능하지만 기록이 남지 않음
+
+### 5단계: 디자인 다듬기
 디베이트 페이지 디자인을 다듬어줘.
 
 - 대화 턴 추가 시 fade-in + slide-up
@@ -51,7 +65,7 @@ app/api/debate/route.ts 파일을 만들어줘.
 - 모바일 반응형
 - 인사이트 카드에 부드러운 그림자
 
-### 5단계: 저장 & 배포
+### 6단계: 저장 & 배포
 지금까지 만든 코드를 git에 커밋하고 push 해줘.
 커밋 메시지는 "feat: 페르소나 디베이트 대화 구현"으로.
 브랜치는 jaerim.
@@ -60,10 +74,12 @@ app/api/debate/route.ts 파일을 만들어줘.
 테이블 구조는 `prisma/schema.prisma`에 정의되어 있습니다.
 - 테이블을 추가/변경하려면 schema.prisma를 수정하고 `npx prisma db push` 실행
 - 데이터 조회/저장은 `lib/prisma.ts`의 prisma 클라이언트 사용
-- 예시: `await prisma.conversation.create({ data: { sessionId, speaker: 'A', content, turnOrder: 1 } })`
+- 대화 저장: `await prisma.conversation.create({ data: { sessionId, speaker: 'A', content, turnOrder: 1 } })`
+- 사용자별 세션+대화 조회: `await prisma.session.findMany({ where: { userId: user.id }, include: { conversations: true } })`
 
 ## 사용할 수 있는 공용 모듈
 - `lib/prisma.ts` — Prisma DB 클라이언트 (세션, 대화 CRUD)
+- `lib/auth.ts` — Google OAuth 인증 (`getUser()`, `signInWithGoogle()`, `signOut()`)
 - `lib/sessions.ts` — Supabase 세션 저장/불러오기
 - `lib/resources.ts` — 외부 리소스 데이터
 - `lib/market.ts` — 시장 데이터
