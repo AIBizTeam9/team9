@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const MESSAGES = [
@@ -14,6 +14,20 @@ const MESSAGES = [
 export default function LoadingPage() {
   const router = useRouter();
   const called = useRef(false);
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  // Cycle through messages: fade out → swap text → fade in
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setMsgIndex((i) => (i + 1) % MESSAGES.length);
+        setVisible(true);
+      }, 300);
+    }, 2500);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (called.current) return;
@@ -56,48 +70,32 @@ export default function LoadingPage() {
       className="min-h-screen flex flex-col items-center justify-center px-6"
       style={{ background: 'var(--bg)' }}
     >
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes msgFade {
-          0%   { opacity: 0; transform: translateY(6px); }
-          15%  { opacity: 1; transform: translateY(0); }
-          80%  { opacity: 1; }
-          100% { opacity: 0; }
-        }
-        .spinner {
-          animation: spin 1s linear infinite;
-        }
-        .msg-cycle span {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: msgFade ${MESSAGES.length * 2}s ease-in-out infinite;
-        }
-        ${MESSAGES.map((_, i) => `.msg-cycle span:nth-child(${i + 1}) { animation-delay: ${i * 2}s; }`).join('\n')}
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Spinner */}
       <div
-        className="spinner w-9 h-9 rounded-full mb-10"
+        className="w-9 h-9 rounded-full mb-10"
         style={{
           border: '2.5px solid var(--line)',
           borderTopColor: 'var(--warm)',
+          animation: 'spin 0.9s linear infinite',
         }}
       />
 
-      {/* Cycling message */}
-      <div
-        className="msg-cycle relative h-6 w-[260px]"
-        style={{ color: 'var(--ink-3)', fontSize: '14px' }}
+      {/* Cycling message — single element, JS-driven fade */}
+      <p
+        style={{
+          color: 'var(--ink-3)',
+          fontSize: '14px',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(6px)',
+          transition: 'opacity 300ms ease, transform 300ms ease',
+          minWidth: '220px',
+          textAlign: 'center',
+        }}
       >
-        {MESSAGES.map((msg) => (
-          <span key={msg}>{msg}</span>
-        ))}
-      </div>
+        {MESSAGES[msgIndex]}
+      </p>
     </div>
   );
 }
