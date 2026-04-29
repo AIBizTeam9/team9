@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/quiz", label: "퀴즈" },
   { href: "/debate", label: "디베이트" },
   { href: "/plan", label: "90일 플랜" },
+  { href: "/letter", label: "미래의 나에게" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
   { href: "/docs/setup-guide.html", label: "개발가이드" },
