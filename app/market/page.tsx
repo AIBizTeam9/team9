@@ -100,6 +100,22 @@ export default function MarketPage() {
           기술 트렌드, 산업 동향, 연봉, 수요 스킬, 직업 전망. 페르소나의
           결정이 현실에서 어떻게 검증되는지 — 객관적 데이터로 살펴보세요.
         </p>
+
+        <Link
+          href="/market/compare"
+          className="inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-full text-[13px] font-medium transition-all hover:bg-[var(--accent-2)]"
+          style={{
+            border: "1px solid var(--line-2)",
+            color: "var(--ink-2)",
+            background: "var(--bg-2)",
+          }}
+        >
+          <span style={{ color: "var(--blue)" }}>A</span>
+          <span style={{ color: "var(--ink-3)" }}>vs</span>
+          <span style={{ color: "var(--warm)" }}>B</span>
+          <span className="ml-1">두 미래 나란히 비교하기</span>
+          <span className="text-[11px] opacity-70">→</span>
+        </Link>
       </section>
 
       <main className="max-w-[980px] mx-auto px-6 pb-24">
