@@ -22,10 +22,14 @@ export const metadata: Metadata = {
   description: "AI가 만들어주는 두 개의 미래 — 나의 가능성을 A/B 테스트하세요",
 };
 
+// NOTE: jiyun(/next-step)과 seokbin(/plan) 모두 "90일 플랜" 라벨을 사용 중.
+// 두 라우트가 모두 실제로 존재해 union으로 병합. PR 머지 후 팀에서 라벨/라우트
+// 중복을 정리해야 함 (예: 한 쪽을 canonical로 통합).
 const NAV_ITEMS = [
   { href: "/quiz", label: "퀴즈" },
   { href: "/debate", label: "디베이트" },
-  { href: "/plan", label: "90일 플랜" },
+  { href: "/next-step", label: "90일 플랜" },
+  { href: "/plan", label: "플랜 (seokbin)" },
   { href: "/letter", label: "미래의 나에게" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
