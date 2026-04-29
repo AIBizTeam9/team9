@@ -7,9 +7,10 @@
 
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![Claude API](https://img.shields.io/badge/Claude-Sonnet%204.6-d97757)](https://www.anthropic.com)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed-Vercel-black)](https://next-step-in-life.vercel.app)
 [![License](https://img.shields.io/badge/license-class--project-lightgrey)](#license)
 
-🔗 **프로토타입 데모:** https://aibizteam9.github.io/next-step-in-life-demo/
+🔗 **라이브 사이트:** https://next-step-in-life.vercel.app/
 
 ---
 
@@ -17,19 +18,17 @@
 
 사용자의 현재 삶과 고민을 바탕으로, LLM이 **두 개의 대안 미래를 시뮬레이션**하고 그 둘이 직접 대화하게 만든 뒤, 사용자에게 지금 당장 해야 할 **구체적인 다음 스텝**을 제안하는 웹 서비스입니다.
 
-간단한 퀴즈 → AI가 두 개의 지브리풍 페르소나 생성 → 페르소나끼리 논쟁 → 최종 추천과 90일 실행 플랜.
+세 개의 메뉴로 구성됩니다:
+1. **90일 플랜** (`/next-step`) — 15문항 퀴즈에서 두 미래 페르소나를 시뮬레이션하고 90일 액션 플랜을 생성
+2. **미래의 나에게 편지** (`/letter`) — 미래의 자신에게 편지를 쓰고 AI 응답을 받음 *(개발 중)*
+3. **세 번째 메뉴** — 멘토 매칭 컨셉이 스코프 초과로 재설계 중
 
 ---
 
 ## ✦ 이 아이디어를 선택한 이유 / Why this idea
 
-팀 내부에서 여러 아이디어를 검토했습니다:
-
-- HR 데이터베이스를 활용한 프로젝트 매니저 추천 시스템
-- 소개팅 앱 데이터를 활용한 3:3 미팅 매칭
-- 그 외 다수
-
-그러나 위 아이디어들은 모두 **규칙 기반 input-output 프로젝트**로, 사실상 고급 엑셀 기법이나 SQL만으로도 구현이 가능하다는 결론에 도달했습니다. "AI를 활용한다"는 수업의 목적에 완전히 부합하지 않는다고 판단했습니다.
+팀 내부에서 여러 아이디어를 검토했는데 대부분이 모두 **규칙 기반 input-output 프로젝트**로, 사실상 고급 엑셀 기법이나 SQL만으로도 구현이 가능하다는 결론에 도달했습니다. 
+"AI를 활용한다"는 수업의 목적에 완전히 부합하지 않는다고 판단했습니다.
 
 저희는 이 수업의 목표를 다음과 같이 이해했습니다:
 
@@ -41,42 +40,56 @@
 
 | 기준 | 충족 여부 |
 | --- | --- |
-| LLM이 없으면 아예 불가능한 프로젝트인가? | ✅ 두 자아 시뮬레이션 + 대화 + 웹 리서치는 프롬프트 체이닝의 결과물 |
+| LLM이 없으면 아예 불가능한 프로젝트인가? | ✅ 두 자아 시뮬레이션 + 프롬프트 체이닝의 결과물 |
 | 사용자가 실제로 쓸 만한가? | ✅ 인생 고민은 누구에게나 있음 → 공유·바이럴 요소 내재 |
 | 바이브코딩 연습이 되는가? | ✅ Claude Code + GitHub + API 통합을 풀스택으로 경험 |
-| 수업 기간(약 4주) 내 완성 가능한가? | ✅ 프로토타입은 이미 작동 중 |
+| 수업 기간(약 4주) 내 완성 가능한가? | ✅ 메뉴 1 라이브 배포 완료 |
 
 ---
 
-## ✦ 주요 기능 / Features
+## ✦ 메뉴 / Menus
 
-- 🪞 **15문항 퀴즈** — 나이, 직업, 고민, 강점/약점, 꿈 등 실제 삶의 맥락 수집
-- 🎭 **두 개의 지브리풍 페르소나** — 서로 다른 미래를 시각적으로 보여주는 캐릭터 카드
-- 💬 **페르소나 간 실시간 논쟁** — 약 20개 메시지의 대화로 인사이트 도출
-- 📊 **근거 기반 추천** — 웹 리서치로 뒷받침된 통계 + 구체적 답
-- 🗓 **90일 실행 플랜** — 실제로 클릭 가능한 링크와 타임라인 제공
+### 1. 90일 플랜 — `/next-step`
+**담당:** 유지윤 (`jiyun`) · **상태:** 라이브 배포 완료
+
+15문항 퀴즈에 답하면 Claude가 두 미래 페르소나(Future A: 현재 경로 / Future B: 갈망의 경로)를 내부적으로 시뮬레이션하고, 그 토론에서 emerged한 사용자 맞춤 90일 액션 플랜(3 month × 4 week × actions, resources, first step)을 생성합니다.
+
+흐름:
+- `/next-step` — 진입 화면
+- `/next-step/quiz` — 한 화면에 한 질문씩, 15문항 (진행률 바)
+- `/next-step/loading` — Anthropic API 호출 + 로딩 메시지 cycling
+- `/next-step/plan` — 생성된 플랜 렌더링 (headline · rationale · coreInsight · monthly themes · weekly actions · resources · first step)
+
+핵심 파일: `app/next-step/`, `app/api/generate-plan/route.ts`, `lib/questions.ts`, `lib/types.ts`, `scripts/test-plan.ts`
+
+### 2. 미래의 나에게 편지 — `/letter`
+**담당:** 강석빈 (`seokbin`) · **상태:** 개발 중
+
+[석빈이 직접 작성 예정]
+
+### 3. 세 번째 메뉴 — TBD
+**담당:** 이재림 (`jaerim`) · **상태:** 메뉴 재설계 중
+
+원래 멘토 매칭 컨셉이었으나 스코프 초과로 다른 방향 모색 중. 
+우선 롤모델 매칭하는 기능을 구현해볼 예정. 
 
 ---
 
-## ✦ 작동 원리 / How it works
+## ✦ 작동 원리 / How it works (90일 플랜 기준)
 
 ```text
 [사용자 퀴즈 답변 15개]
         ↓
-[Claude Sonnet 4.6 — 페르소나 생성 프롬프트]
+[Claude Sonnet 4.6 — 시스템 프롬프트가 두 미래 페르소나를 내부적으로 시뮬레이션]
         ↓
-[두 명의 대안 자아 생성 (Persona A, B)]
+[페르소나 토론이 prose 필드(rationale · coreInsight)에 녹아듦]
         ↓
-[멀티턴 대화 루프 — 두 페르소나가 서로에게 질문]
+[Plan JSON 생성 — headline · rationale · coreInsight · 3 months × 4 weeks · resources · firstStep]
         ↓
-[Claude — 대화에서 핵심 인사이트 추출]
-        ↓
-[웹 리서치 툴 호출 — 근거 통계 수집]
-        ↓
-[90일 플랜 생성 프롬프트]
-        ↓
-[사용자에게 시각적 결과 렌더링]
+[클라이언트에서 sessionStorage로 받아 시각화]
 ```
+
+JSON 스키마는 `lib/types.ts:Plan` 참고.
 
 ---
 
@@ -85,11 +98,11 @@
 | Layer | Tech |
 | --- | --- |
 | Frontend | Next.js 16 · React 19 · Tailwind CSS 4 |
-| Backend | FastAPI · Uvicorn |
-| LLM | **Claude Sonnet 4.6** (Anthropic API) |
-| 이미지 생성 | Stable Diffusion XL + Ghibli LoRA *(옵션)* |
+| Backend | Next.js API Routes (서버 컴포넌트) |
+| LLM | **Claude Sonnet 4.6** (Anthropic API · `@anthropic-ai/sdk`) |
+| 데이터 | sessionStorage (현재) · Supabase (예정) |
 | Font | Inter · Instrument Serif |
-| 배포 | GitHub Pages *(프로토타입)* · Vercel + Fly.io *(예정)* |
+| 배포 | **Vercel** ([next-step-in-life.vercel.app](https://next-step-in-life.vercel.app)) |
 
 **왜 Claude인가?** 수업의 테마인 Claude Code와 일관성을 유지하고, 본 프로젝트의 핵심인 멀티 페르소나 프롬프트 체이닝에 Claude Sonnet 4.6가 특히 강점이 있기 때문입니다.
 
@@ -99,21 +112,27 @@
 
 ```text
 team9/
-├── app/                      # Next.js 16 프론트엔드 (App Router)
-│   ├── page.tsx              # 메인 퀴즈/결과 UI
-│   ├── layout.tsx            # 공통 레이아웃
-│   └── globals.css           # Tailwind + 전역 스타일
-├── backend/
-│   ├── main.py               # FastAPI 서버 (Claude API 프록시 + 프롬프트 관리)
-│   └── requirements.txt      # Python 의존성
+├── app/
+│   ├── next-step/                    # 메뉴 1: 90일 플랜 (jiyun)
+│   │   ├── page.tsx
+│   │   ├── quiz/page.tsx
+│   │   ├── loading/page.tsx
+│   │   └── plan/page.tsx
+│   ├── letter/                       # 메뉴 2: 미래의 나에게 (seokbin)
+│   ├── api/
+│   │   └── generate-plan/route.ts    # 90일 플랜 API
+│   ├── layout.tsx
+│   └── globals.css
+├── lib/
+│   ├── questions.ts                  # 15문항 정의
+│   └── types.ts                      # Plan, Answers, PlanMonth 등 타입
+├── scripts/
+│   └── test-plan.ts                  # 90일 플랜 API 테스트 스크립트
 ├── docs/
-│   └── MANIFESTO.md          # 팀 원칙과 비전
-├── .gitignore
-├── eslint.config.mjs
-├── next.config.ts
+│   └── jiyun.md                      # 90일 플랜 spec
+├── middleware.ts
+├── .env.example
 ├── package.json
-├── postcss.config.mjs
-├── tsconfig.json
 └── README.md
 ```
 
@@ -122,52 +141,39 @@ team9/
 ## ✦ 시작하기 / Getting Started
 
 ### Prerequisites
-
 - **Node.js** 20.x 이상 ([nvm](https://github.com/nvm-sh/nvm) 추천)
-- **Python** 3.11 이상
-- **Anthropic API Key** — *아직 발급 전. 백엔드 LLM 연동 단계에서 [console.anthropic.com](https://console.anthropic.com)에서 발급 예정*
+- **Anthropic API Key** — [console.anthropic.com](https://console.anthropic.com)에서 발급. 팀 내부 채널에서 .env 공유 받기.
 
-### 1. Repo 클론
-
+### 1. Repo 클론 & 설치
 ```bash
 git clone https://github.com/AIBizTeam9/team9.git
 cd team9
+npm install
 ```
 
 ### 2. 환경변수 설정
-
-프로젝트 루트에 `.env.local` 파일을 생성 (이 파일은 gitignore에 포함되어 있으며 **절대 커밋 금지**):
+프로젝트 루트에 `.env.local` 파일 생성 (gitignore 포함, **절대 커밋 금지**):
 
 ```bash
 # .env.local
 ANTHROPIC_API_KEY=sk-ant-...
-NEXT_PUBLIC_API_URL=http://localhost:15501
 ```
 
-API 키가 준비되기 전까지는 프론트엔드를 백엔드 Mock 응답과 함께 단독 실행 가능합니다.
+`.env.example`을 템플릿으로 참고.
 
-### 3. 백엔드 실행 (port 15501)
-
+### 3. 개발 서버 실행
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 15501 --reload
+npm run dev
 ```
 
-API 문서: `http://localhost:15501/docs`
+브라우저에서 [http://localhost:3000](http://localhost:3000) 접속.
 
-### 4. 프론트엔드 실행 (port 15500)
-
-새 터미널에서:
-
+### 4. 90일 플랜 API 단독 테스트 (선택)
 ```bash
-npm install
-npm run dev -- --port 15500
+npx tsx scripts/test-plan.ts
 ```
 
-브라우저에서 [http://localhost:15500](http://localhost:15500) 접속.
+Sarah Kim 테스트 데이터로 Anthropic API를 호출하고 Plan JSON을 출력합니다.
 
 ---
 
@@ -175,64 +181,53 @@ npm run dev -- --port 15500
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `POST` | `/personas` | 퀴즈 답변 → 두 페르소나 JSON 반환 |
-| `POST` | `/debate` | 페르소나 2개 → 스트리밍 대화 생성 |
-| `POST` | `/plan` | 대화 결과 → 추천 + 90일 플랜 |
-| `GET` | `/health` | 헬스체크 |
+| `POST` | `/api/generate-plan` | 90일 플랜 — `Answers` JSON → `Plan` JSON |
 
-*(백엔드 구현에 따라 업데이트 예정)*
+(메뉴 2, 3의 API 엔드포인트는 각자 추가)
 
 ---
 
 ## ✦ 팀 / Team
 
-이동근 / 강석빈 / 이재림 / 유지윤
-
+| 이름 | 담당 | 브랜치 |
+| --- | --- | --- |
+| 이동근 | 환경 셋업 · Vercel 배포 · 인프라 | `dongkeun` |
+| 강석빈 | 메뉴 2: 미래의 나에게 | `seokbin` |
+| 이재림 | 메뉴 3: TBD | `jaerim` |
+| 유지윤 | 메뉴 1: 90일 플랜 | `jiyun` |
 
 ---
 
 ## ✦ 기여 가이드 / Contributing
 
 ### 브랜치 전략
-
-- `main` — 보호됨. PR 통해서만 머지
-- `feat/*` — 신규 기능 (예: `feat/persona-generation`)
-- `fix/*` — 버그 픽스
-- `docs/*` — 문서 변경
-- `chore/*` — 도구·리팩토링·의존성 업데이트
+- `main` — 보호됨. PR을 통해서만 머지
+- 각 팀원은 자신의 이름을 브랜치명으로 사용 (`jiyun`, `seokbin`, `jaerim`, `dongkeun`)
+- PR 머지 전 팀 리뷰 필수
 
 ### PR 체크리스트
-
 - [ ] `npm run lint` 통과
-- [ ] 백엔드 임포트 정상 (`python -c "import main"`)
-- [ ] `.env` 또는 시크릿이 diff에 없음
+- [ ] `npx tsc --noEmit` — 타입 에러 없음
+- [ ] `.env.local` 또는 시크릿이 diff에 없음
 - [ ] `main` 최신 상태와 동기화
 - [ ] PR 설명에 *무엇* 뿐 아니라 *왜* 포함
 
 ### 커밋 메시지 규칙
-
-[Conventional Commits](https://www.conventionalcommits.org/) 사용:
-
-```
-feat: 두 페르소나 생성 프롬프트 추가
-fix: 빈 메시지 전송 방지
-docs: 백엔드 셋업 단계 보완
-chore: next 버전 16.0.2로 업데이트
-```
+[Conventional Commits](https://www.conventionalcommits.org/) 사용. 한국어 본문 OK:
 
 ---
 
 ## ✦ 로드맵
 
-- [x] 프로토타입 HTML 데모 (GitHub Pages 배포 완료)
+- [x] 프로토타입 HTML 데모 (GitHub Pages)
 - [x] 팀 합의 및 아이디어 확정
-- [x] 기본 Next.js + FastAPI 스캐폴딩
-- [ ] Anthropic API 연동 (Claude key 발급 후)
-- [ ] 페르소나 생성 프롬프트 확정
-- [ ] 멀티턴 대화 루프 구현
-- [ ] 웹 리서치 툴 호출 연동
-- [ ] 90일 플랜 생성 프롬프트
-- [ ] 프로덕션 URL 배포
+- [x] Next.js + Tailwind 스캐폴딩
+- [x] Anthropic API 연동
+- [x] **메뉴 1: 90일 플랜** — 퀴즈 + API + 플랜 렌더링 + 두 미래 페르소나 시뮬레이션
+- [x] **Vercel 프로덕션 배포** ([next-step-in-life.vercel.app](https://next-step-in-life.vercel.app))
+- [ ] 메뉴 2: 미래의 나에게 편지
+- [ ] 메뉴 3: 세 번째 메뉴 결정 + 구현
+- [ ] 90일 플랜 Approach B: 페르소나 공개 페이지 + 토론 시각화
 - [ ] 최종 발표 자료
 
 [Projects 탭](https://github.com/AIBizTeam9/team9/projects)에서 실시간 진행 상황 확인.
