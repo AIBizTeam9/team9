@@ -8,6 +8,7 @@ import {
   type Resource,
   type CategoryKey,
 } from "@/lib/resources";
+import BookmarkButton from "@/components/bookmark-button";
 
 const COLOR_MAP: Record<string, { fg: string; soft: string }> = {
   blue:   { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
@@ -305,14 +306,27 @@ export default function ResourcesPage() {
                   href={r.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-2xl p-5 transition-all hover:shadow-lg flex flex-col"
+                  className="group rounded-2xl p-5 transition-all hover:shadow-lg flex flex-col relative"
                   style={{
                     background: "var(--bg-2)",
                     border: "1px solid var(--line)",
                     boxShadow: "var(--shadow)",
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
+                  <BookmarkButton
+                    variant="floating"
+                    payload={{
+                      kind: "resource",
+                      itemId: r.id,
+                      title: r.title,
+                      summary: r.description,
+                      url: r.url,
+                      source: r.source,
+                      icon: r.icon,
+                      category: meta.label,
+                    }}
+                  />
+                  <div className="flex items-start gap-3 mb-3 pr-10">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                       style={{ background: c.soft }}

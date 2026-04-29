@@ -8,6 +8,7 @@ import {
   type MarketItem,
   type MarketCategoryKey,
 } from "@/lib/market";
+import BookmarkButton from "@/components/bookmark-button";
 
 const COLOR_MAP: Record<string, { fg: string; soft: string }> = {
   cyan:    { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
@@ -306,14 +307,27 @@ export default function MarketPage() {
                   href={item.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-2xl p-5 transition-all hover:shadow-lg"
+                  className="group rounded-2xl p-5 transition-all hover:shadow-lg relative"
                   style={{
                     background: "var(--bg-2)",
                     border: "1px solid var(--line)",
                     boxShadow: "var(--shadow)",
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
+                  <BookmarkButton
+                    variant="floating"
+                    payload={{
+                      kind: "market",
+                      itemId: item.id,
+                      title: item.title,
+                      summary: item.summary,
+                      url: item.sourceUrl,
+                      source: item.source,
+                      icon: item.icon,
+                      category: meta.label,
+                    }}
+                  />
+                  <div className="flex items-start gap-3 mb-3 pr-10">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                       style={{ background: c.soft }}
