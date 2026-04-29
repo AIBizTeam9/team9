@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   fetchMarketData,
   MARKET_CATEGORIES,
@@ -8,12 +9,27 @@ import {
   type MarketCategoryKey,
 } from "@/lib/market";
 
+const COLOR_MAP: Record<string, { fg: string; soft: string }> = {
+  cyan:    { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
+  blue:    { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
+  emerald: { fg: "var(--green)", soft: "var(--green-soft)" },
+  violet:  { fg: "#7c5cbf",      soft: "#f0ecf9"           },
+  amber:   { fg: "var(--warm)",  soft: "var(--warm-soft)"  },
+};
+
 export default function MarketPage() {
   const [items, setItems] = useState<MarketItem[]>([]);
+  const [allItems, setAllItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<MarketCategoryKey | "all">("all");
+  const [activeCategory, setActiveCategory] =
+    useState<MarketCategoryKey | "all">("all");
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
+
+  // 카테고리 카운트 표시용 — 전체 데이터를 한 번 로드해 캐시
+  useEffect(() => {
+    fetchMarketData().then(setAllItems).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,64 +44,102 @@ export default function MarketPage() {
     }
   }, [activeCategory, keyword]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleSearch = () => setKeyword(searchInput.trim());
-  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") handleSearch(); };
-
-  const colorMap: Record<string, { dot: string; soft: string; text: string }> = {
-    cyan:    { dot: "var(--blue)",  soft: "var(--blue-soft)",  text: "var(--blue)" },
-    blue:    { dot: "var(--blue)",  soft: "var(--blue-soft)",  text: "var(--blue)" },
-    emerald: { dot: "var(--green)", soft: "var(--green-soft)", text: "var(--green)" },
-    violet:  { dot: "#7c5cbf",     soft: "#f0ecf9",           text: "#7c5cbf" },
-    amber:   { dot: "var(--warm)",  soft: "var(--warm-soft)",  text: "var(--warm)" },
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSearch();
+  };
+  const clearFilters = () => {
+    setActiveCategory("all");
+    setKeyword("");
+    setSearchInput("");
   };
 
-  const categoryMeta = (key: MarketCategoryKey) => MARKET_CATEGORIES.find((c) => c.key === key)!;
+  const categoryMeta = (key: MarketCategoryKey) =>
+    MARKET_CATEGORIES.find((c) => c.key === key)!;
+  const activeMeta =
+    activeCategory !== "all" ? categoryMeta(activeCategory) : null;
+  const hasFilter = activeCategory !== "all" || keyword !== "";
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <header style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="max-w-[980px] mx-auto px-6 py-5">
-          <h1 className="font-serif text-2xl tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
-            시장 인사이트
-          </h1>
-          <p className="text-[13px] mt-0.5" style={{ color: "var(--ink-3)" }}>
-            산업 트렌드, 연봉 데이터, 수요 스킬 — 커리어 결정에 필요한 시장 정보
-          </p>
+      {/* Hero */}
+      <section className="max-w-[980px] mx-auto px-6 pt-14 pb-10">
+        <div
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[12px] tracking-[0.04em] uppercase mb-6"
+          style={{
+            background: "var(--accent-2)",
+            color: "var(--ink-3)",
+            border: "1px solid var(--line)",
+          }}
+        >
+          <span
+            className="w-[6px] h-[6px] rounded-full"
+            style={{ background: "var(--warm)" }}
+          />
+          Insight · Market Data
         </div>
-      </header>
 
-      <main className="max-w-[980px] mx-auto px-6 py-6">
+        <h1
+          className="font-serif text-4xl sm:text-5xl tracking-[-0.03em] leading-[1.1] mb-5"
+          style={{ color: "var(--ink)" }}
+        >
+          두 미래가 <span style={{ color: "var(--warm)" }}>겨루는</span> 무대,
+          <br />
+          시장이라는 데이터.
+        </h1>
+
+        <p
+          className="text-[15px] leading-relaxed max-w-xl"
+          style={{ color: "var(--ink-3)" }}
+        >
+          기술 트렌드, 산업 동향, 연봉, 수요 스킬, 직업 전망. 페르소나의
+          결정이 현실에서 어떻게 검증되는지 — 객관적 데이터로 살펴보세요.
+        </p>
+      </section>
+
+      <main className="max-w-[980px] mx-auto px-6 pb-24">
         {/* Search */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-5">
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="키워드로 검색 (예: AI, 반도체, 연봉, Python...)"
-            className="flex-1 px-4 py-2.5 rounded-xl text-[14px] focus:outline-none transition-all"
-            style={{ border: "1px solid var(--line)", background: "var(--bg-2)", color: "var(--ink)" }}
+            placeholder="키워드로 검색 — AI, 반도체, 연봉, Python..."
+            className="flex-1 px-4 py-3 rounded-2xl text-[14px] focus:outline-none transition-all"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--bg-2)",
+              color: "var(--ink)",
+              boxShadow: "var(--shadow)",
+            }}
           />
           <button
             onClick={handleSearch}
-            className="px-5 py-2.5 rounded-xl text-[13px] font-medium transition-all hover:opacity-80"
+            className="px-5 py-3 rounded-2xl text-[13px] font-medium transition-all hover:opacity-90"
             style={{ background: "var(--accent)", color: "#fff" }}
           >
             검색
           </button>
         </div>
 
-        {/* Category filter */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+        {/* Category quick-filter pills */}
+        <div className="flex gap-2 mb-10 overflow-x-auto pb-2">
           <button
             onClick={() => setActiveCategory("all")}
-            className="shrink-0 px-4 py-2 rounded-full text-[13px] font-medium transition-all"
+            className="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
             style={{
-              background: activeCategory === "all" ? "var(--accent)" : "var(--bg-2)",
-              color: activeCategory === "all" ? "#fff" : "var(--ink-3)",
-              border: activeCategory === "all" ? "none" : "1px solid var(--line)",
+              background:
+                activeCategory === "all" ? "var(--ink)" : "transparent",
+              color: activeCategory === "all" ? "var(--bg)" : "var(--ink-3)",
+              border:
+                activeCategory === "all"
+                  ? "1px solid var(--ink)"
+                  : "1px solid var(--line-2)",
             }}
           >
             전체
@@ -94,11 +148,16 @@ export default function MarketPage() {
             <button
               key={cat.key}
               onClick={() => setActiveCategory(cat.key)}
-              className="shrink-0 px-4 py-2 rounded-full text-[13px] font-medium transition-all flex items-center gap-1.5"
+              className="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-medium transition-all flex items-center gap-1.5"
               style={{
-                background: activeCategory === cat.key ? "var(--accent)" : "var(--bg-2)",
-                color: activeCategory === cat.key ? "#fff" : "var(--ink-3)",
-                border: activeCategory === cat.key ? "none" : "1px solid var(--line)",
+                background:
+                  activeCategory === cat.key ? "var(--ink)" : "transparent",
+                color:
+                  activeCategory === cat.key ? "var(--bg)" : "var(--ink-3)",
+                border:
+                  activeCategory === cat.key
+                    ? "1px solid var(--ink)"
+                    : "1px solid var(--line-2)",
               }}
             >
               <span>{cat.icon}</span>
@@ -107,50 +166,140 @@ export default function MarketPage() {
           ))}
         </div>
 
-        {/* Category summary */}
-        {activeCategory === "all" && !keyword && !loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-            {MARKET_CATEGORIES.map((cat) => {
-              const count = items.filter((r) => r.category === cat.key).length;
-              const c = colorMap[cat.color];
-              return (
-                <button
-                  key={cat.key}
-                  onClick={() => setActiveCategory(cat.key)}
-                  className="rounded-2xl p-4 text-left transition-all hover:shadow-md"
-                  style={{ background: c.soft, border: "1px solid var(--line)" }}
-                >
-                  <div className="text-2xl mb-2">{cat.icon}</div>
-                  <div className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>{cat.label}</div>
-                  <div className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>{count}건</div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex justify-center py-20">
-            <div className="flex gap-1">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ background: "var(--warm)", animationDelay: `${i * 200}ms` }} />
-              ))}
+        {/* Category overview cards (no filter applied) */}
+        {!hasFilter && (
+          <section className="mb-12">
+            <p
+              className="text-[12px] font-medium tracking-[0.08em] uppercase mb-4"
+              style={{ color: "var(--ink-3)" }}
+            >
+              5가지 인사이트 카테고리
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {MARKET_CATEGORIES.map((cat) => {
+                const c = COLOR_MAP[cat.color];
+                const count = allItems.filter(
+                  (it) => it.category === cat.key,
+                ).length;
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => setActiveCategory(cat.key)}
+                    className="group rounded-2xl p-5 text-left transition-all hover:shadow-lg"
+                    style={{
+                      background: "var(--bg-2)",
+                      border: "1px solid var(--line)",
+                      boxShadow: "var(--shadow)",
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                        style={{ background: c.soft }}
+                      >
+                        {cat.icon}
+                      </div>
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full"
+                        style={{
+                          background: "var(--accent-2)",
+                          color: "var(--ink-3)",
+                        }}
+                      >
+                        {count}건
+                      </span>
+                    </div>
+                    <h3
+                      className="font-serif text-[18px] tracking-[-0.01em] mb-1 group-hover:opacity-80 transition-opacity"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {cat.label}
+                    </h3>
+                    <p
+                      className="text-[12px] leading-relaxed"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      {cat.description}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
+          </section>
+        )}
+
+        {/* Active filter banner */}
+        {hasFilter && !loading && (
+          <div
+            className="flex items-center justify-between gap-3 mb-6 px-5 py-3 rounded-2xl"
+            style={{
+              background: "var(--accent-2)",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <p className="text-[13px]" style={{ color: "var(--ink-2)" }}>
+              <span className="font-semibold">{items.length}건</span>
+              {activeMeta && (
+                <>
+                  <span style={{ color: "var(--ink-3)" }}> · </span>
+                  <span>
+                    {activeMeta.icon} {activeMeta.label}
+                  </span>
+                </>
+              )}
+              {keyword && (
+                <>
+                  <span style={{ color: "var(--ink-3)" }}> · </span>
+                  <span>키워드 “{keyword}”</span>
+                </>
+              )}
+            </p>
+            <button
+              onClick={clearFilters}
+              className="text-[12px] underline-offset-4 hover:underline"
+              style={{ color: "var(--ink-3)" }}
+            >
+              필터 초기화
+            </button>
           </div>
         )}
 
+        {/* Loading state */}
+        {loading && (
+          <div className="text-center py-20">
+            <p
+              className="font-serif italic text-[20px] mb-2"
+              style={{ color: "var(--ink-2)" }}
+            >
+              찾는 중...
+            </p>
+            <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+              데이터를 불러오고 있어요
+            </p>
+          </div>
+        )}
+
+        {/* Empty state */}
         {!loading && items.length === 0 && (
-          <div className="text-center py-20" style={{ color: "var(--ink-3)" }}>
-            <p className="text-lg mb-2">검색 결과가 없습니다</p>
-            <p className="text-[13px]">다른 키워드나 카테고리를 시도해보세요</p>
+          <div className="text-center py-20">
+            <p
+              className="font-serif italic text-[22px] mb-2"
+              style={{ color: "var(--ink-2)" }}
+            >
+              아직 보여드릴 게 없어요
+            </p>
+            <p className="text-[13px]" style={{ color: "var(--ink-3)" }}>
+              다른 키워드나 카테고리를 시도해보세요
+            </p>
           </div>
         )}
 
+        {/* Result list */}
         {!loading && items.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {items.map((item) => {
               const meta = categoryMeta(item.category);
-              const c = colorMap[meta.color];
+              const c = COLOR_MAP[meta.color];
               return (
                 <a
                   key={item.id}
@@ -158,28 +307,78 @@ export default function MarketPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group rounded-2xl p-5 transition-all hover:shadow-lg"
-                  style={{ background: "var(--bg-2)", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "1px solid var(--line)",
+                    boxShadow: "var(--shadow)",
+                  }}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl shrink-0">{item.icon}</span>
+                  <div className="flex items-start gap-3 mb-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                      style={{ background: c.soft }}
+                    >
+                      {item.icon}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: c.soft, color: c.text }}>{meta.label}</span>
-                        <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{item.updatedAt}</span>
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: c.soft, color: c.fg }}
+                        >
+                          {meta.label}
+                        </span>
+                        <span
+                          className="text-[10px]"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          {item.updatedAt}
+                        </span>
                       </div>
-                      <h3 className="text-[14px] font-semibold group-hover:opacity-70 transition-opacity" style={{ color: "var(--ink)" }}>{item.title}</h3>
-                      <p className="text-[12px] mt-1.5 line-clamp-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{item.summary}</p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{item.source}</span>
-                        <span style={{ color: "var(--line-2)" }}>|</span>
-                        <div className="flex gap-1 flex-wrap">
-                          {item.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: c.soft, color: c.text }}>{tag}</span>
-                          ))}
-                        </div>
-                      </div>
+                      <h3
+                        className="text-[14px] font-semibold leading-snug group-hover:opacity-70 transition-opacity"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {item.title}
+                      </h3>
                     </div>
-                    <span className="text-[12px] opacity-0 group-hover:opacity-100 transition-opacity mt-1" style={{ color: "var(--ink-3)" }}>→</span>
+                  </div>
+                  <p
+                    className="text-[13px] leading-relaxed mb-3 line-clamp-2"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    {item.summary}
+                  </p>
+                  <div
+                    className="flex items-center justify-between gap-2 pt-3"
+                    style={{ borderTop: "1px solid var(--line)" }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <span
+                        className="text-[11px] truncate"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        {item.source}
+                      </span>
+                      {item.tags.slice(0, 2).map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{
+                            background: "var(--accent-2)",
+                            color: "var(--ink-3)",
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <span
+                      className="text-[12px] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      ↗
+                    </span>
                   </div>
                 </a>
               );
@@ -187,28 +386,52 @@ export default function MarketPage() {
           </div>
         )}
 
-        {/* Teammate guide */}
-        <section className="mt-16 mb-8 rounded-2xl p-6" style={{ background: "var(--accent-2)", border: "1px solid var(--line)" }}>
-          <h2 className="font-serif text-lg mb-4" style={{ color: "var(--ink)" }}>팀원 가이드: 시장 데이터 연동</h2>
-          <div className="space-y-4 text-[13px]" style={{ color: "var(--ink-3)" }}>
-            <div>
-              <h3 className="font-semibold mb-1" style={{ color: "var(--ink-2)" }}>프론트엔드에서 사용하기</h3>
-              <pre className="rounded-lg p-3 text-[12px] overflow-x-auto" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-{`import { fetchMarketData, type MarketItem, MARKET_CATEGORIES } from "@/lib/market";
-
-const all = await fetchMarketData();
-const techTrends = await fetchMarketData("tech");
-const aiOutlook = await fetchMarketData("outlook", "AI");`}
-              </pre>
+        {/* Cross-page CTA */}
+        <section
+          className="mt-16 rounded-2xl p-7 sm:p-8"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--warm-soft), var(--bg-2))",
+            border: "1px solid var(--line)",
+            boxShadow: "var(--shadow)",
+          }}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between">
+            <div className="min-w-0 flex-1">
+              <p
+                className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+                style={{ color: "var(--warm)" }}
+              >
+                Next Step
+              </p>
+              <h3
+                className="font-serif text-[22px] tracking-[-0.01em] mb-1"
+                style={{ color: "var(--ink)" }}
+              >
+                이 데이터로 나만의 90일 플랜을 만들어보세요
+              </h3>
+              <p className="text-[13px]" style={{ color: "var(--ink-3)" }}>
+                시장 인사이트는 두 페르소나의 결정을 검증하는 재료가 됩니다.
+              </p>
             </div>
-            <div>
-              <h3 className="font-semibold mb-1" style={{ color: "var(--ink-2)" }}>API 직접 호출</h3>
-              <pre className="rounded-lg p-3 text-[12px] overflow-x-auto" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-{`GET /api/market                          → 전체
-GET /api/market?category=tech            → 기술 트렌드
-GET /api/market?category=salary          → 연봉 정보
-GET /api/market?keyword=AI               → AI 키워드`}
-              </pre>
+            <div className="flex gap-2 flex-shrink-0">
+              <Link
+                href="/quiz"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-[13px] font-semibold text-white transition-all hover:opacity-90"
+                style={{ background: "var(--accent)" }}
+              >
+                퀴즈 시작 <span className="text-[11px] opacity-70">→</span>
+              </Link>
+              <Link
+                href="/plan"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all hover:bg-[var(--accent-2)]"
+                style={{
+                  color: "var(--ink-2)",
+                  border: "1px solid var(--line-2)",
+                }}
+              >
+                90일 플랜
+              </Link>
             </div>
           </div>
         </section>
