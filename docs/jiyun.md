@@ -1,87 +1,203 @@
-# 지윤 — 퀴즈 & 페르소나 생성
+# docs/jiyun.md — Next Step in Life: 90-day Plan
 
-## 담당 영역
-- `app/quiz/` — 퀴즈 폼 + 페르소나 결과 화면
-- `app/api/personas/` — 퀴즈 답변 → 페르소나 2개 생성 API
+> Spec for Jiyun's feature. Branch: `jiyun`. Stack: Next.js 16 (App Router) + Tailwind 4 + Anthropic SDK.
 
-## 브랜치
+## Goal
+
+Build the end-to-end **"Next Step in Life: 90-day plan"** menu. User answers 15 questions about their life → Claude generates a structured, actionable 90-day plan → renders beautifully. No database yet — pass state via sessionStorage.
+
+## Routes
+
+| Path | What it does |
+| --- | --- |
+| `app/next-step/page.tsx` | Landing for this menu — short intro + "Start" CTA |
+| `app/next-step/quiz/page.tsx` | 15-question form, one question per screen, progress bar, sessionStorage on submit |
+| `app/next-step/loading/page.tsx` | Calls `/api/generate-plan`, stores response, redirects to `/next-step/plan` |
+| `app/next-step/plan/page.tsx` | Renders plan from sessionStorage |
+| `app/api/generate-plan/route.ts` | `POST` endpoint: receives answers JSON, returns plan JSON |
+
+## State management
+
+- `sessionStorage['nextStep.answers']` — JSON-stringified answers, written by quiz, read by loading
+- `sessionStorage['nextStep.plan']` — JSON-stringified plan, written by loading, read by plan page
+- No DB. Simple.
+
+## The 15 questions (use this exact array)
+
+Save as `lib/questions.ts`:
+
+```ts
+export type Question = {
+  k: string;
+  type: 'number' | 'text' | 'textarea' | 'choice';
+  t: string;            // question text
+  h?: string;           // optional helper text below the question
+  ph?: string;          // optional placeholder for input
+  o?: string[];         // options for type='choice'
+};
+
+export const QUESTIONS: Question[] = [
+  { k: 'age', type: 'number', t: 'How old are you?', h: 'Just the number — we use it to scale your plan timeline.', ph: 'e.g. 28' },
+  { k: 'occupation', type: 'text', t: 'What do you do for work or school right now?', ph: "Marketing manager / Master's student" },
+  { k: 'lifeSituation', type: 'choice', t: "What's your life situation?", o: ['Single', 'Dating, not serious', 'In a serious relationship', 'Married', 'Prefer not to say'] },
+  { k: 'income', type: 'choice', t: 'Roughly, what do you earn a year?', o: ['Less than $30k / ₩40M', '$30k–60k / ₩40–80M', '$60k–100k / ₩80–130M', '$100k–150k / ₩130–200M', 'More than $150k / ₩200M+', 'No income right now'] },
+  { k: 'savings', type: 'choice', t: 'How much have you saved?', h: 'Months of expenses (excluding retirement accounts).', o: ['Less than 3 months', '3–6 months', '6–12 months', '1–2 years', 'More than 2 years'] },
+  { k: 'hoursPerWeek', type: 'choice', t: 'How many hours per week could you realistically spend on changing something?', h: 'Be honest — your plan is built around this.', o: ['Less than 2', '2–5', '5–10', '10–20', '20+'] },
+  { k: 'stuck', type: 'textarea', t: "What's the one thing in your life that feels stuck right now?", h: 'Be specific. The plan is built from this.', ph: "I've been burnt out for a year but I'm scared of stepping off the ladder…" },
+  { k: 'desiredChange', type: 'textarea', t: 'If you could change one specific thing in the next 90 days, what would it be?', ph: 'Get my film camera back into my hands every week' },
+  { k: 'tried', type: 'textarea', t: "What have you already tried that didn't work?", h: "So we don't suggest things you've already done.", ph: 'I tried therapy, journaling, gym memberships…' },
+  { k: 'strengths', type: 'textarea', t: 'What are you genuinely good at?', ph: 'Writing, seeing patterns, making teams feel calm' },
+  { k: 'struggles', type: 'textarea', t: 'What do you struggle with?', ph: 'Saying no, sitting still, asking for help' },
+  { k: 'childhoodDream', type: 'text', t: 'What did you want to be as a kid?', ph: 'Photographer / writer / astronaut' },
+  { k: 'feelsAlive', type: 'textarea', t: 'What is a small thing that consistently makes you feel alive?', ph: 'Early mornings with coffee and a notebook' },
+  { k: 'mbti', type: 'text', t: "What's your MBTI? (4 letters — guess if unsure)", ph: 'INFJ' },
+  { k: 'boldness', type: 'choice', t: 'How bold do you want this plan to be?', h: '1 = small incremental changes; 5 = leap', o: ['1 — Incremental', '2 — Modest', '3 — Balanced', '4 — Bold', '5 — Leap'] }
+];
 ```
-jiyun
+
+## Plan output JSON shape
+
+Save as `lib/types.ts`:
+
+```ts
+export type Answers = Record<string, string | number>;
+
+export type PlanAction = {
+  week: number;          // 1–12
+  title: string;
+  why: string;
+  effort: 'small' | 'medium' | 'large';
+};
+
+export type PlanMonth = {
+  month: 1 | 2 | 3;
+  theme: string;         // e.g. "Reset", "Explore", "Commit"
+  actions: PlanAction[];
+};
+
+export type PlanResource = {
+  title: string;
+  url: string;           // real, working URLs only — well-known sites
+  why: string;
+};
+
+export type Plan = {
+  headline: string;       // one-sentence summary of the recommendation
+  rationale: string;      // 2–3 sentence "why this plan, given your answers"
+  coreInsight: string;    // the truth-they-half-knew, one sentence
+  months: PlanMonth[];    // exactly 3
+  resources: PlanResource[];   // 3–5
+  firstStep: string;      // the single thing to do TODAY
+};
 ```
 
-## 해야 할 것 (순서대로)
+## API route
 
-### 1단계: 퀴즈 화면 만들기
-app/quiz/page.tsx를 수정해서 퀴즈 페이지를 만들어줘.
+`app/api/generate-plan/route.ts`:
 
-요구사항:
-- 사용자의 가치관, 관심사, 강점을 파악하는 질문 5~7개
-- 질문 유형: 객관식(4개 보기), 슬라이더(1~10), 자유 텍스트
-- 한 번에 한 문제씩 보여주고, 진행률 바가 상단에 표시
-- "다음" 버튼으로 다음 질문 이동
-- 마지막 질문 후 "결과 보기" 버튼
-- 밝은 톤 디자인 (배경 #fafaf9, 카드 흰색, 테라코타 강조색 #d97757)
+- Read `ANTHROPIC_API_KEY` from `process.env`
+- Use `@anthropic-ai/sdk` (already installed)
+- Model: `claude-sonnet-4-6`
+- `max_tokens`: 4096
+- System prompt (see below)
+- User prompt: "Here are the user's answers (JSON):\n\n{answers JSON}\n\nReturn the 90-day plan as JSON only, matching the schema described in the system prompt."
+- Parse response text as JSON. On parse failure: return `{ error: 'invalid response' }`, status 500.
 
-### 2단계: 페르소나 생성 API
-app/api/personas/route.ts 파일을 만들어줘.
+### System prompt (use this verbatim)
 
-요구사항:
-- POST 요청으로 퀴즈 답변 배열을 받음
-- Claude API (Anthropic SDK)로 두 개의 페르소나 생성
-- 각 페르소나: 이름, 나이, 직업, 성격 요약, 5년 후 모습, 장점과 리스크
-- 응답: { persona_a: {...}, persona_b: {...} }
-- 환경변수 ANTHROPIC_API_KEY 사용
-- API 키 없으면 데모 데이터 반환
-- lib/sessions.ts의 createSession으로 Supabase에 저장
+```
+You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
 
-### 3단계: 결과 화면 연결
-퀴즈 완료 후 페르소나 결과 화면을 만들어줘.
+Hard rules:
+- Avoid generic advice ('be more confident', 'network more', 'practice gratitude'). Every action must have a concrete next step.
+- Use the user's own words back to them when relevant — quote their phrases.
+- The plan must fit within the user's stated weekly hours budget. If they said "Less than 2 hours/week," do not propose a plan that requires 5 hours/week.
+- For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
+- Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
 
-요구사항:
-- "결과 보기" 누르면 /api/personas에 POST 요청
-- 로딩 중: "두 개의 미래를 만들고 있어요..." 애니메이션
-- 페르소나 A(테라코타)와 B(블루) 카드 2장 나란히 표시
-- 각 카드: 이름, 직업, 성격, 5년 후 모습
-- 하단에 "이 두 사람의 대화를 들어볼래요?" → /debate 이동
+Output exactly the following JSON schema. No prose before or after, no markdown fences.
 
-### 4단계: 로그인 사용자 — 내 퀴즈 히스토리
-로그인한 사용자의 퀴즈 기록을 저장하고 다시 볼 수 있게 해줘.
+{
+  "headline": "string — one-sentence summary",
+  "rationale": "string — 2-3 sentences explaining why this plan",
+  "coreInsight": "string — the truth they half-know, one sentence",
+  "months": [
+    { "month": 1, "theme": "string", "actions": [ { "week": 1, "title": "string", "why": "string", "effort": "small|medium|large" } ] },
+    { "month": 2, "theme": "string", "actions": [ ... ] },
+    { "month": 3, "theme": "string", "actions": [ ... ] }
+  ],
+  "resources": [ { "title": "string", "url": "string", "why": "string" } ],
+  "firstStep": "string — the one thing to do today"
+}
 
-요구사항:
-- 퀴즈 결과 저장 시 로그인 상태를 확인 (`lib/auth.ts`의 `getUser()` 사용)
-- 로그인된 사용자면 세션에 user_id를 함께 저장
-  - sessions 테이블에 user_id 컬럼이 있음 (Prisma 스키마 확인: `prisma/schema.prisma`)
-  - `await prisma.session.create({ data: { quizAnswers, personaA, personaB, userId: user.id } })`
-- 퀴즈 페이지 상단에 "내 기록" 버튼 추가 (로그인 시에만 표시)
-- "내 기록" 클릭 시 과거 퀴즈 결과 목록을 카드로 표시:
-  - 날짜, 페르소나 A 이름/직업, 페르소나 B 이름/직업
-  - 카드 클릭 시 해당 결과 상세 화면으로 이동
-- 비로그인 사용자도 퀴즈는 가능하지만 기록이 저장되지 않음 → "로그인하면 기록이 저장됩니다" 안내 메시지
+Each month should have 3-5 actions. Total resources: 3-5. Weeks across the plan: 1 through 12.
+```
 
-### 5단계: 디자인 다듬기
-퀴즈 페이지 디자인을 다듬어줘.
+## Design language
 
-- 질문 전환 시 fade-in 애니메이션
-- 선택된 보기에 체크 표시와 색상 강조
-- 진행률 바에 그라데이션
-- 모바일 반응형
-- 페르소나 카드에 부드러운 그림자
+Match the existing demo aesthetic (warm minimal):
 
-### 6단계: 저장 & 배포
-지금까지 만든 코드를 git에 커밋하고 push 해줘.
-커밋 메시지는 "feat: 퀴즈 & 페르소나 생성 구현"으로.
-브랜치는 jiyun.
+- **Fonts:** Instrument Serif (headings) + Inter (body), via Google Fonts in `app/layout.tsx`
+- **Colors:** background `#FAFAF7`, ink `#1A1A1A`, secondary ink `#666`, accent coral `#E07856`, hairline border `#E5E2DC`
+- **Style:** Linear/Notion minimal. Lots of whitespace. Subtle borders. Smooth transitions (200ms). No drop shadows.
+- **Typography:** large serif H1s (60–80px), comfortable line-height (1.6 body)
+- **Quiz:** one question at a time, full-screen feel. Progress bar at top. Back/Next buttons.
+- **Plan:** sectioned vertical layout — headline → core insight card → 3 month sections (each with theme + week actions) → resources → "first step today" callout
 
-## DB 사용법 (Prisma)
-테이블 구조는 `prisma/schema.prisma`에 정의되어 있습니다.
-- 테이블을 추가/변경하려면 schema.prisma를 수정하고 `npx prisma db push` 실행
-- 데이터 조회/저장은 `lib/prisma.ts`의 prisma 클라이언트 사용
-- 예시: `await prisma.session.create({ data: { quizAnswers: answers } })`
-- 로그인 사용자 조회: `await prisma.session.findMany({ where: { userId: user.id } })`
+## Build order (do in this order, one at a time)
 
-## 사용할 수 있는 공용 모듈
-- `lib/prisma.ts` — Prisma DB 클라이언트 (세션, 대화 CRUD)
-- `lib/auth.ts` — Google OAuth 인증 (`getUser()`, `signInWithGoogle()`, `signOut()`)
-- `lib/sessions.ts` — Supabase 세션 저장/불러오기
-- `lib/resources.ts` — 외부 리소스 데이터
-- `lib/market.ts` — 시장 데이터
+1. **Verify env:** `.env.local` has `ANTHROPIC_API_KEY`, `@anthropic-ai/sdk` is in `package.json`
+2. Create `lib/questions.ts` and `lib/types.ts`
+3. Build `app/api/generate-plan/route.ts` — wire to Anthropic SDK with the system prompt above
+4. **Test the API in isolation** before any UI: write a quick test script `scripts/test-plan.ts` that calls the route with the Sarah Kim test answers below and prints the response. Verify the plan JSON parses and looks reasonable.
+5. Build `app/next-step/page.tsx` (landing)
+6. Build `app/next-step/quiz/page.tsx` (15-question form)
+7. Build `app/next-step/loading/page.tsx` (calls API, redirects)
+8. Build `app/next-step/plan/page.tsx` (renders plan)
+9. Test end-to-end in dev server (`npm run dev`)
+10. Commit and push to `jiyun` branch
+
+## Test data — Sarah Kim
+
+Use this for testing the API route before any UI exists:
+
+```json
+{
+  "age": 28,
+  "occupation": "Marketing manager at a B2B SaaS",
+  "lifeSituation": "Single",
+  "income": "$60k–100k / ₩80–130M",
+  "savings": "6–12 months",
+  "hoursPerWeek": "5–10",
+  "stuck": "I've been burnt out for almost a year. I keep thinking about quitting but I also just got fast-tracked for a director promotion. I don't know if I want it or just don't want to disappoint anyone.",
+  "desiredChange": "Get my film camera back into regular rotation; figure out if I want this director role or just don't want to disappoint anyone",
+  "tried": "Therapy, weekend trips, gym",
+  "strengths": "Writing, strategy, making teams feel calm, seeing the story in data",
+  "struggles": "Saying no, perfectionism, losing myself in other people's priorities",
+  "childhoodDream": "Photographer",
+  "feelsAlive": "Early mornings with coffee and a notebook. My film camera.",
+  "mbti": "INFJ",
+  "boldness": "3 — Balanced"
+}
+```
+
+## Don'ts
+
+- Don't add Supabase yet — pass state via sessionStorage
+- Don't hardcode `ANTHROPIC_API_KEY` anywhere — only read from `process.env`
+- Don't make up URLs in resources — only well-known sites with real URLs
+- Don't commit `.env.local` (already gitignored — verify with `git status`)
+- Don't push to `main` — push to `jiyun` branch, open PR
+- Don't try to build all 4 pages at once — build the API first, test it, then UI
+
+## When done
+
+```bash
+git status                  # confirm .env.local is NOT in the list
+git add .
+git commit -m "feat: 90-day plan menu — quiz, API, plan rendering"
+git push -u origin jiyun
+gh pr create --web
+```
+
+In the PR description, include: a short summary, a screenshot of the rendered Sarah-Kim plan, and a note that this is for the "Next Step in Life: 90-day plan" menu.

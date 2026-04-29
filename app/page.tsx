@@ -6,6 +6,7 @@ const PIPELINE_STEPS = [
   { num: 3, label: "디베이트", owner: "재림" },
   { num: 4, label: "인사이트", owner: "재림" },
   { num: 5, label: "90일 플랜", owner: "석빈" },
+  { num: 6, label: "편지", owner: "석빈" },
 ];
 
 const FEATURE_CARDS = [
@@ -38,6 +39,16 @@ const FEATURE_CARDS = [
     ready: false,
     color: "var(--green)",
     softColor: "var(--green-soft)",
+  },
+  {
+    href: "/letter",
+    title: "미래의 나에게",
+    desc: "오늘의 내가 미래의 나에게 보내는 편지. 90일 플랜 너머의 commitment device — 매주 켜고 인생을 끌고 가는 도구로 진화 예정.",
+    owner: "석빈",
+    status: "prototype",
+    ready: false,
+    color: "var(--warm)",
+    softColor: "var(--warm-soft)",
   },
   {
     href: "/market",
@@ -144,13 +155,17 @@ export default function HomePage() {
                           ? "var(--warm-soft)"
                           : i < 4
                             ? "var(--blue-soft)"
-                            : "var(--green-soft)",
+                            : i < 5
+                              ? "var(--green-soft)"
+                              : "var(--warm-soft)",
                       color:
                         i < 2
                           ? "var(--warm)"
                           : i < 4
                             ? "var(--blue)"
-                            : "var(--green)",
+                            : i < 5
+                              ? "var(--green)"
+                              : "var(--warm)",
                     }}
                   >
                     {step.num}
