@@ -22,12 +22,9 @@ export const metadata = {
  * 누수되지 않게 한다.
  */
 export default async function SetupGuidePage() {
-  const filePath = path.join(
-    process.cwd(),
-    "public",
-    "docs",
-    "setup-guide.html",
-  );
+  // source: docs/setup-guide.html (project root, not public/).
+  // public/docs/setup-guide.html은 redirect 적용을 위해 삭제됨.
+  const filePath = path.join(process.cwd(), "docs", "setup-guide.html");
   const raw = await fs.readFile(filePath, "utf8");
 
   const { body, css } = extractGuide(raw);
