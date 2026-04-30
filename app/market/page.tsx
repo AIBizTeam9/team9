@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   fetchMarketData,
@@ -8,6 +8,14 @@ import {
   type MarketItem,
   type MarketCategoryKey,
 } from "@/lib/market";
+import {
+  recommend,
+  recordView,
+  subscribeActivityChanges,
+  topInterestLabel,
+  viewedIdSet,
+  clearActivity,
+} from "@/lib/user-activity";
 
 const COLOR_MAP: Record<string, { fg: string; soft: string }> = {
   cyan:    { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
@@ -25,6 +33,31 @@ export default function MarketPage() {
     useState<MarketCategoryKey | "all">("all");
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
+
+  // 개인화: 사용자가 클릭한 카드 누적치에서 미본 항목 추천 + ✓ 표시
+  const [viewed, setViewed] = useState<Set<string>>(new Set());
+  const [activityVersion, setActivityVersion] = useState(0);
+
+  useEffect(() => {
+    setViewed(viewedIdSet("market"));
+    const unsub = subscribeActivityChanges("market", () => {
+      setViewed(viewedIdSet("market"));
+      setActivityVersion((v) => v + 1);
+    });
+    return unsub;
+  }, []);
+
+  const recommendations = useMemo<MarketItem[]>(() => {
+    if (allItems.length === 0) return [];
+    return recommend("market", allItems, 4);
+    // activityVersion을 의존성으로 두어 변경 시 재계산
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, activityVersion]);
+
+  const interestLabel = useMemo<string | null>(() => {
+    return topInterestLabel("market");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityVersion]);
 
   // 카테고리 카운트 표시용 — 전체 데이터를 한 번 로드해 캐시
   useEffect(() => {
@@ -47,6 +80,18 @@ export default function MarketPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const onCardClick = useCallback((item: MarketItem) => {
+    recordView("market", {
+      id: item.id,
+      category: item.category,
+      tags: item.tags,
+    });
+  }, []);
+
+  const onResetActivity = useCallback(() => {
+    clearActivity("market");
+  }, []);
 
   const handleSearch = () => setKeyword(searchInput.trim());
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -165,6 +210,97 @@ export default function MarketPage() {
             </button>
           ))}
         </div>
+
+        {/* 개인화 추천 — viewed ≥ 3건이고 추천 결과가 있을 때만 노출 */}
+        {!hasFilter && recommendations.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p
+                  className="text-[11px] font-medium tracking-[0.08em] uppercase mb-1"
+                  style={{ color: "var(--warm)" }}
+                >
+                  내 관심사 기반 추천
+                </p>
+                {interestLabel && (
+                  <p
+                    className="text-[12px] truncate"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    당신이 자주 본 <span style={{ color: "var(--ink-2)" }}>{interestLabel}</span> 와(과) 관련된 미열람 항목
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={onResetActivity}
+                className="text-[11px] underline-offset-4 hover:underline shrink-0"
+                style={{ color: "var(--ink-3)" }}
+                title="이 페이지의 활동 기록을 비우고 추천을 초기화"
+              >
+                추천 초기화
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {recommendations.map((item) => {
+                const meta = categoryMeta(item.category);
+                const c = COLOR_MAP[meta.color];
+                return (
+                  <a
+                    key={`rec-${item.id}`}
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onCardClick(item)}
+                    className="group rounded-2xl p-4 transition-all hover:shadow-lg relative"
+                    style={{
+                      background: "var(--bg-2)",
+                      border: "1px solid var(--warm)",
+                      boxShadow: "var(--shadow)",
+                    }}
+                  >
+                    <span
+                      className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: "var(--warm-soft)",
+                        color: "var(--warm)",
+                      }}
+                    >
+                      추천
+                    </span>
+                    <div className="flex items-start gap-3 pr-12">
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                        style={{ background: c.soft }}
+                      >
+                        {item.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: c.soft, color: c.fg }}
+                        >
+                          {meta.label}
+                        </span>
+                        <h3
+                          className="text-[13px] font-semibold leading-snug mt-1 group-hover:opacity-70 transition-opacity"
+                          style={{ color: "var(--ink)" }}
+                        >
+                          {item.title}
+                        </h3>
+                        <p
+                          className="text-[12px] leading-relaxed line-clamp-1 mt-1"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          {item.summary}
+                        </p>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Category overview cards (no filter applied) */}
         {!hasFilter && (
@@ -300,20 +436,35 @@ export default function MarketPage() {
             {items.map((item) => {
               const meta = categoryMeta(item.category);
               const c = COLOR_MAP[meta.color];
+              const isViewed = viewed.has(item.id);
               return (
                 <a
                   key={item.id}
                   href={item.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-2xl p-5 transition-all hover:shadow-lg"
+                  onClick={() => onCardClick(item)}
+                  className="group rounded-2xl p-5 transition-all hover:shadow-lg relative"
                   style={{
                     background: "var(--bg-2)",
                     border: "1px solid var(--line)",
                     boxShadow: "var(--shadow)",
+                    opacity: isViewed ? 0.7 : 1,
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
+                  {isViewed && (
+                    <span
+                      className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
+                      style={{
+                        background: "var(--green-soft)",
+                        color: "var(--green)",
+                      }}
+                      title="이미 본 항목"
+                    >
+                      ✓ 봄
+                    </span>
+                  )}
+                  <div className="flex items-start gap-3 mb-3 pr-12">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                       style={{ background: c.soft }}

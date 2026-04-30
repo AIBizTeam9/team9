@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   fetchResources,
@@ -8,6 +8,14 @@ import {
   type Resource,
   type CategoryKey,
 } from "@/lib/resources";
+import {
+  recommend,
+  recordView,
+  subscribeActivityChanges,
+  topInterestLabel,
+  viewedIdSet,
+  clearActivity,
+} from "@/lib/user-activity";
 
 const COLOR_MAP: Record<string, { fg: string; soft: string }> = {
   blue:   { fg: "var(--blue)",  soft: "var(--blue-soft)"  },
@@ -25,6 +33,30 @@ export default function ResourcesPage() {
     useState<CategoryKey | "all">("all");
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
+
+  // 개인화: 클릭 누적 → 미본 항목 추천 + ✓ 표시
+  const [viewed, setViewed] = useState<Set<string>>(new Set());
+  const [activityVersion, setActivityVersion] = useState(0);
+
+  useEffect(() => {
+    setViewed(viewedIdSet("resources"));
+    const unsub = subscribeActivityChanges("resources", () => {
+      setViewed(viewedIdSet("resources"));
+      setActivityVersion((v) => v + 1);
+    });
+    return unsub;
+  }, []);
+
+  const recommendations = useMemo<Resource[]>(() => {
+    if (allResources.length === 0) return [];
+    return recommend("resources", allResources, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allResources, activityVersion]);
+
+  const interestLabel = useMemo<string | null>(() => {
+    return topInterestLabel("resources");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityVersion]);
 
   useEffect(() => {
     fetchResources().then(setAllResources).catch(() => {});
@@ -46,6 +78,18 @@ export default function ResourcesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const onCardClick = useCallback((r: Resource) => {
+    recordView("resources", {
+      id: r.id,
+      category: r.category,
+      tags: r.tags,
+    });
+  }, []);
+
+  const onResetActivity = useCallback(() => {
+    clearActivity("resources");
+  }, []);
 
   const handleSearch = () => setKeyword(searchInput.trim());
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -164,6 +208,97 @@ export default function ResourcesPage() {
             </button>
           ))}
         </div>
+
+        {/* 개인화 추천 — viewed ≥ 3건이고 추천 결과가 있을 때만 노출 */}
+        {!hasFilter && recommendations.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p
+                  className="text-[11px] font-medium tracking-[0.08em] uppercase mb-1"
+                  style={{ color: "var(--blue)" }}
+                >
+                  내 관심사 기반 추천
+                </p>
+                {interestLabel && (
+                  <p
+                    className="text-[12px] truncate"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    당신이 자주 본 <span style={{ color: "var(--ink-2)" }}>{interestLabel}</span> 와(과) 관련된 미열람 자료
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={onResetActivity}
+                className="text-[11px] underline-offset-4 hover:underline shrink-0"
+                style={{ color: "var(--ink-3)" }}
+                title="이 페이지의 활동 기록을 비우고 추천을 초기화"
+              >
+                추천 초기화
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recommendations.map((r) => {
+                const meta = categoryMeta(r.category);
+                const c = COLOR_MAP[meta.color];
+                return (
+                  <a
+                    key={`rec-${r.id}`}
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onCardClick(r)}
+                    className="group rounded-2xl p-4 transition-all hover:shadow-lg flex flex-col relative"
+                    style={{
+                      background: "var(--bg-2)",
+                      border: "1px solid var(--blue)",
+                      boxShadow: "var(--shadow)",
+                    }}
+                  >
+                    <span
+                      className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: "var(--blue-soft)",
+                        color: "var(--blue)",
+                      }}
+                    >
+                      추천
+                    </span>
+                    <div className="flex items-start gap-3 pr-12">
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                        style={{ background: c.soft }}
+                      >
+                        {r.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: c.soft, color: c.fg }}
+                        >
+                          {meta.label}
+                        </span>
+                        <h3
+                          className="text-[13px] font-semibold leading-snug mt-1 group-hover:opacity-70 transition-opacity"
+                          style={{ color: "var(--ink)" }}
+                        >
+                          {r.title}
+                        </h3>
+                        <p
+                          className="text-[12px] leading-relaxed line-clamp-1 mt-1"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          {r.description}
+                        </p>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Category overview */}
         {!hasFilter && (
@@ -299,20 +434,35 @@ export default function ResourcesPage() {
             {resources.map((r) => {
               const meta = categoryMeta(r.category);
               const c = COLOR_MAP[meta.color];
+              const isViewed = viewed.has(r.id);
               return (
                 <a
                   key={r.id}
                   href={r.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-2xl p-5 transition-all hover:shadow-lg flex flex-col"
+                  onClick={() => onCardClick(r)}
+                  className="group rounded-2xl p-5 transition-all hover:shadow-lg flex flex-col relative"
                   style={{
                     background: "var(--bg-2)",
                     border: "1px solid var(--line)",
                     boxShadow: "var(--shadow)",
+                    opacity: isViewed ? 0.7 : 1,
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
+                  {isViewed && (
+                    <span
+                      className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
+                      style={{
+                        background: "var(--green-soft)",
+                        color: "var(--green)",
+                      }}
+                      title="이미 본 항목"
+                    >
+                      ✓ 봄
+                    </span>
+                  )}
+                  <div className="flex items-start gap-3 mb-3 pr-12">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                       style={{ background: c.soft }}
