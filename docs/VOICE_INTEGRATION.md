@@ -46,6 +46,8 @@
 선택 props:
 - speakerLabel: 화면에 표시할 이름 (예: "롤모델 · 일론 머스크")
 - accentColor: 'var(--warm)' | 'var(--blue)' | 'var(--green)' 중 하나
+- serverVoice: OpenAI TTS 보이스 — nova | shimmer | coral | sage | alloy | ballad | echo | onyx | ash | fable
+- speed: 발화 속도 0.7 ~ 1.3 (기본 1.0)
 
 이 페이지의 맥락은:
 <여기에 페이지 목적 한 줄로 — 예: "사용자의 90일 플랜을 같이 짜는 미래의 자아">
@@ -98,8 +100,8 @@ export default function PlanPage() {
 
 ## 참고
 
-- API 키가 없으면 `/api/voice-chat`은 데모 응답을 돌려줍니다 (개발 중에도 동작 확인 가능).
-- 키가 들어오면 `claude-sonnet-4-6`로 응답이 바뀝니다.
-- 모바일 Safari는 동작이 불안정합니다. 데모/시연은 데스크톱 Chrome 권장.
+- 대화 응답: `ANTHROPIC_API_KEY`가 있으면 `claude-sonnet-4-6`, 없으면 데모 응답.
+- 음성 합성: `OPENAI_API_KEY`가 있으면 OpenAI TTS(자연스러움), 없으면 브라우저 Web Speech로 자동 폴백.
+- 모바일 Safari는 동작이 불안정합니다. 데모/시연은 데스크톱 Chrome/Edge 권장.
 
 질문 / 버그는 dongkeun에게.

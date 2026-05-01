@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import VoiceChat from "@/components/voice-chat";
+import type { ServerVoiceId } from "@/lib/voice";
 
 type Preset = {
   id: string;
@@ -12,7 +13,21 @@ type Preset = {
   systemPrompt: string;
   initialMessage: string;
   ownerHint: string;
+  voice: ServerVoiceId;
 };
+
+const VOICE_OPTIONS: { id: ServerVoiceId; desc: string }[] = [
+  { id: "nova", desc: "여성 · 따뜻함 (기본)" },
+  { id: "shimmer", desc: "여성 · 부드러움" },
+  { id: "coral", desc: "여성 · 밝음" },
+  { id: "sage", desc: "여성 · 차분" },
+  { id: "alloy", desc: "중성 · 균형" },
+  { id: "ballad", desc: "남성 · 차분" },
+  { id: "echo", desc: "남성 · 또렷함" },
+  { id: "onyx", desc: "남성 · 깊고 묵직" },
+  { id: "ash", desc: "남성 · 단단함" },
+  { id: "fable", desc: "영국식 · 동화 톤" },
+];
 
 const PRESETS: Preset[] = [
   {
@@ -21,6 +36,7 @@ const PRESETS: Preset[] = [
     speakerLabel: "10년 뒤의 나",
     accentColor: "var(--warm)",
     ownerHint: "공통 / 데모",
+    voice: "nova",
     systemPrompt: `당신은 사용자의 10년 뒤 미래 자아입니다.
 지혜롭지만 잘난 척하지 않고, 친한 형/언니처럼 반말로 다정하게 말합니다.
 사용자의 현재 고민을 듣고 미래에서 본 관점으로 짧고 구체적인 조언을 줍니다.
@@ -34,6 +50,7 @@ const PRESETS: Preset[] = [
     speakerLabel: "90일 플랜 코치",
     accentColor: "var(--green)",
     ownerHint: "석빈 / /plan",
+    voice: "sage",
     systemPrompt: `당신은 사용자의 90일 플랜을 같이 다듬는 실용적인 코치입니다.
 비현실적인 항목을 짚어주고, 더 작은 첫 행동을 제안합니다.
 반말로 다정하지만 단호하게 말합니다. 칭찬보다 다음 행동에 초점을 둡니다.`,
@@ -46,6 +63,7 @@ const PRESETS: Preset[] = [
     speakerLabel: "롤모델 — 가상 멘토",
     accentColor: "var(--blue)",
     ownerHint: "재림 / /rolemodel",
+    voice: "onyx",
     systemPrompt: `당신은 사용자가 선택한 롤모델의 정신을 빌린 가상의 멘토입니다.
 그 인물의 철학과 말투를 흉내 내되, 사용자에게는 반말로 친근하게 말합니다.
 당시 그 인물이 비슷한 갈림길에서 어떻게 생각했는지 짧은 일화로 답합니다.`,
@@ -58,6 +76,7 @@ const PRESETS: Preset[] = [
     speakerLabel: "안정을 택한 나",
     accentColor: "var(--blue)",
     ownerHint: "재림 / /debate",
+    voice: "shimmer",
     systemPrompt: `당신은 사용자가 '안정적인 길'을 택했을 때의 미래 자아입니다.
 그 선택의 장점과 후회를 솔직하게 말합니다. 거짓 위안을 주지 않고, 다른 선택지의 자아도 존중합니다.
 반말로 침착하게 말합니다.`,
@@ -70,6 +89,7 @@ const PRESETS: Preset[] = [
     speakerLabel: "도전을 택한 나",
     accentColor: "var(--warm)",
     ownerHint: "재림 / /debate",
+    voice: "coral",
     systemPrompt: `당신은 사용자가 '도전적인 길'을 택했을 때의 미래 자아입니다.
 그 선택의 짜릿함과 대가를 솔직하게 말합니다. 무모함을 미화하지 않고, 다른 선택지의 자아도 존중합니다.
 반말로 에너지 있게 말합니다.`,
@@ -86,15 +106,25 @@ export default function LabVoicePage() {
   const [customSystem, setCustomSystem] = useState("");
   const [customInitial, setCustomInitial] = useState("");
   const [customAccent, setCustomAccent] = useState("var(--warm)");
+  const [voiceOverride, setVoiceOverride] = useState<ServerVoiceId | "preset">("preset");
+  const [speed, setSpeed] = useState<number>(1.0);
   const [resetKey, setResetKey] = useState(0);
 
   const active = useMemo(() => {
+    const presetVoice =
+      selectedId === CUSTOM_ID
+        ? "nova"
+        : (PRESETS.find((x) => x.id === selectedId) ?? PRESETS[0]).voice;
+    const voice: ServerVoiceId =
+      voiceOverride === "preset" ? presetVoice : voiceOverride;
+
     if (selectedId === CUSTOM_ID) {
       return {
         systemPrompt: customSystem.trim(),
         initialMessage: customInitial.trim(),
         speakerLabel: customLabel.trim() || "커스텀 페르소나",
         accentColor: customAccent,
+        voice,
       };
     }
     const p = PRESETS.find((x) => x.id === selectedId) ?? PRESETS[0];
@@ -103,8 +133,16 @@ export default function LabVoicePage() {
       initialMessage: p.initialMessage,
       speakerLabel: p.speakerLabel,
       accentColor: p.accentColor,
+      voice,
     };
-  }, [selectedId, customSystem, customInitial, customLabel, customAccent]);
+  }, [
+    selectedId,
+    customSystem,
+    customInitial,
+    customLabel,
+    customAccent,
+    voiceOverride,
+  ]);
 
   const customReady = customSystem.trim().length > 20 && customInitial.trim().length > 0;
   const canRender = selectedId !== CUSTOM_ID || customReady;
@@ -257,14 +295,57 @@ export default function LabVoicePage() {
           </div>
         )}
 
+        {/* Voice tuning */}
+        <div
+          className="mb-5 rounded-2xl p-5 grid gap-3 sm:grid-cols-2"
+          style={{ background: "var(--bg-2)", border: "1px solid var(--line)" }}
+        >
+          <Field label="목소리 (OpenAI TTS)">
+            <select
+              value={voiceOverride}
+              onChange={(e) =>
+                setVoiceOverride(e.target.value as ServerVoiceId | "preset")
+              }
+              className="w-full px-3 py-2 rounded-lg text-[13px] bg-[var(--bg)]"
+              style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+            >
+              <option value="preset">프리셋 기본 사용</option>
+              {VOICE_OPTIONS.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.id} — {v.desc}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={`발화 속도 (${speed.toFixed(2)}x)`}>
+            <input
+              type="range"
+              min={0.7}
+              max={1.3}
+              step={0.05}
+              value={speed}
+              onChange={(e) => setSpeed(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </Field>
+          <p
+            className="sm:col-span-2 text-[11px]"
+            style={{ color: "var(--ink-3)" }}
+          >
+            OpenAI TTS가 있으면 자연스러운 음성으로, 키가 없으면 브라우저 Web Speech로 자동 폴백됩니다.
+          </p>
+        </div>
+
         {/* Voice chat */}
         {canRender ? (
           <VoiceChat
-            key={`${selectedId}-${resetKey}`}
+            key={`${selectedId}-${voiceOverride}-${speed}-${resetKey}`}
             systemPrompt={active.systemPrompt}
             initialMessage={active.initialMessage}
             speakerLabel={active.speakerLabel}
             accentColor={active.accentColor}
+            serverVoice={active.voice}
+            speed={speed}
           />
         ) : (
           <div
@@ -317,6 +398,8 @@ export default function LabVoicePage() {
   initialMessage="${active.initialMessage.replace(/"/g, '\\"')}"
   speakerLabel="${active.speakerLabel}"
   accentColor="${active.accentColor}"
+  serverVoice="${active.voice}"
+  speed={${speed.toFixed(2)}}
 />`}
           </pre>
           <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>

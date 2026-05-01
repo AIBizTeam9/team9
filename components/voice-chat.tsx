@@ -6,6 +6,7 @@ import {
   getSpeechRecognition,
   pickKoreanVoice,
   speak,
+  type ServerVoiceId,
   type SpeechRecognitionLike,
   type VoiceChatResponse,
   type VoiceMessage,
@@ -22,6 +23,10 @@ export type VoiceChatProps = {
   speakerLabel?: string;
   // 추가 톤 표시(선택)
   accentColor?: string;
+  // OpenAI TTS 보이스 (자연스러운 음성). 기본 nova.
+  serverVoice?: ServerVoiceId;
+  // 발화 속도 (0.5–2.0). 기본 1.0.
+  speed?: number;
 };
 
 export default function VoiceChat({
@@ -29,6 +34,8 @@ export default function VoiceChat({
   initialMessage,
   speakerLabel = "미래의 나",
   accentColor = "var(--warm)",
+  serverVoice = "nova",
+  speed = 1.0,
 }: VoiceChatProps) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -61,12 +68,19 @@ export default function VoiceChat({
     };
   }, []);
 
-  const sayAndAppend = useCallback(async (text: string) => {
-    setMessages((prev) => [...prev, { role: "assistant", content: text }]);
-    setStatus("speaking");
-    await speak(text, voiceRef.current);
-    setStatus("idle");
-  }, []);
+  const sayAndAppend = useCallback(
+    async (text: string) => {
+      setMessages((prev) => [...prev, { role: "assistant", content: text }]);
+      setStatus("speaking");
+      await speak(text, {
+        serverVoice,
+        speed,
+        fallbackVoice: voiceRef.current,
+      });
+      setStatus("idle");
+    },
+    [serverVoice, speed],
+  );
 
   const handleStart = useCallback(async () => {
     setStarted(true);
