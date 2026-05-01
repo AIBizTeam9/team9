@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/rolemodel", label: "롤모델" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
+  { href: "/voice-demo", label: "음성 대화" },
   { href: "/setup-guide", label: "개발가이드" },
 ];
 
