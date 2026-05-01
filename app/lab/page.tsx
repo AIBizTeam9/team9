@@ -35,8 +35,7 @@ export default function LabPage() {
             실험실
           </h1>
           <p className="text-[14px] leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            네비게이션에 없는 비공개 경로. 프로덕션 합류 전 기능을 시연·디버깅하는 공간입니다.
-            팀원들에게 공유해도 되지만 사용자에게는 노출하지 마세요.
+            정식 합류 전 기능을 시연·디버깅하는 공간입니다. 여기서 검증한 뒤 각 페이지에 통합됩니다.
           </p>
         </div>
 
