@@ -107,7 +107,7 @@ export default function LabVoicePage() {
   const [customInitial, setCustomInitial] = useState("");
   const [customAccent, setCustomAccent] = useState("var(--warm)");
   const [voiceOverride, setVoiceOverride] = useState<ServerVoiceId | "preset">("preset");
-  const [speed, setSpeed] = useState<number>(1.0);
+  const [speed, setSpeed] = useState<number>(1.4);
   const [bargeIn, setBargeIn] = useState<boolean>(true);
   const [resetKey, setResetKey] = useState(0);
 
@@ -322,7 +322,7 @@ export default function LabVoicePage() {
             <input
               type="range"
               min={0.7}
-              max={1.3}
+              max={2.0}
               step={0.05}
               value={speed}
               onChange={(e) => setSpeed(parseFloat(e.target.value))}

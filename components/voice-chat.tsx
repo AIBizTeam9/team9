@@ -36,7 +36,7 @@ export default function VoiceChat({
   speakerLabel = "미래의 나",
   accentColor = "var(--warm)",
   serverVoice = "nova",
-  speed = 1.0,
+  speed = 1.4,
   bargeIn = true,
 }: VoiceChatProps) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);

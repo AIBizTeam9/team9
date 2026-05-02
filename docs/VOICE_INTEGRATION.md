@@ -47,7 +47,7 @@
 - speakerLabel: 화면에 표시할 이름 (예: "롤모델 · 일론 머스크")
 - accentColor: 'var(--warm)' | 'var(--blue)' | 'var(--green)' 중 하나
 - serverVoice: OpenAI TTS 보이스 — nova | shimmer | coral | sage | alloy | ballad | echo | onyx | ash | fable
-- speed: 발화 속도 0.7 ~ 1.3 (기본 1.0)
+- speed: 발화 속도 0.7 ~ 2.0 (기본 1.4 — 자연스러우면서 박자 좋음)
 - bargeIn: AI 발화 중에 사용자가 말하면 자동으로 끊고 듣기 모드로 전환 (기본 true)
 
 내부 동작:
