@@ -108,48 +108,56 @@ export async function speak(text: string, opts: SpeakOptions = {}): Promise<void
   if (typeof window === "undefined") return;
   cancelSpeak();
 
-  // 1) 서버 TTS 시도 (OpenAI). 503/실패 시 폴백.
-  try {
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        voice: opts.serverVoice ?? "nova",
-        speed: opts.speed ?? 1.0,
-      }),
-    });
-    if (res.ok) {
-      const blob = await res.blob();
-      await playBlob(blob);
-      return;
-    }
-    // 503 = 키 미구성, 폴백으로 진행
-  } catch {
-    // 네트워크 오류도 폴백으로
-  }
+  // 1) 서버 TTS — Audio 엘리먼트가 progressive download로 첫 청크부터 즉시 재생.
+  //    fetch()로 받아서 blob로 만드는 방식은 전체 다운로드를 기다려야 했음 → 제거.
+  const params = new URLSearchParams({
+    text,
+    voice: opts.serverVoice ?? "nova",
+    speed: String(opts.speed ?? 1.0),
+  });
+  const url = `/api/tts?${params.toString()}`;
+
+  const playedFromServer = await tryStreamingPlayback(url);
+  if (playedFromServer) return;
 
   // 2) Web Speech API 폴백
   await speakWithWebSpeech(text, opts.fallbackVoice ?? pickKoreanVoice());
 }
 
-function playBlob(blob: Blob): Promise<void> {
+function tryStreamingPlayback(url: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = url;
     currentAudio = audio;
+
+    let started = false;
+    let settled = false;
+
     const cleanup = () => {
-      URL.revokeObjectURL(url);
       if (currentAudio === audio) currentAudio = null;
-      resolve();
     };
-    audio.onended = cleanup;
-    audio.onerror = cleanup;
-    audio.onpause = () => {
-      // 사용자가 cancelSpeak로 중단한 경우에도 resolve.
-      if (audio.currentTime > 0 && !audio.ended) cleanup();
+    const settle = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(ok);
     };
-    audio.play().catch(cleanup);
+
+    audio.addEventListener("playing", () => {
+      started = true;
+    });
+    audio.addEventListener("ended", () => settle(true));
+    // 재생 중 사용자가 cancelSpeak로 끊으면 pause + currentAudio 해제.
+    audio.addEventListener("pause", () => {
+      if (started) settle(true);
+    });
+    audio.addEventListener("error", () => {
+      // 첫 재생 전 실패 = 서버 503/네트워크 오류 → 폴백 신호. 재생 중 실패는 그냥 끝낸 것으로 처리.
+      settle(started);
+    });
+
+    audio.play().catch(() => settle(started));
   });
 }
 
