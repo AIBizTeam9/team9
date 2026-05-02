@@ -108,6 +108,7 @@ export default function LabVoicePage() {
   const [customAccent, setCustomAccent] = useState("var(--warm)");
   const [voiceOverride, setVoiceOverride] = useState<ServerVoiceId | "preset">("preset");
   const [speed, setSpeed] = useState<number>(1.0);
+  const [bargeIn, setBargeIn] = useState<boolean>(true);
   const [resetKey, setResetKey] = useState(0);
 
   const active = useMemo(() => {
@@ -328,24 +329,35 @@ export default function LabVoicePage() {
               className="w-full"
             />
           </Field>
+          <label className="sm:col-span-2 flex items-center gap-2 text-[12px]" style={{ color: "var(--ink-2)" }}>
+            <input
+              type="checkbox"
+              checked={bargeIn}
+              onChange={(e) => setBargeIn(e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">Barge-in</span> — AI 발화 중 사용자가 말하면 자동으로 끊고 듣기 모드로 전환
+            </span>
+          </label>
           <p
             className="sm:col-span-2 text-[11px]"
             style={{ color: "var(--ink-3)" }}
           >
-            OpenAI TTS가 있으면 자연스러운 음성으로, 키가 없으면 브라우저 Web Speech로 자동 폴백됩니다.
+            OpenAI TTS가 있으면 자연스러운 음성으로, 키가 없으면 브라우저 Web Speech로 자동 폴백됩니다. LLM 응답은 문장 단위로 스트리밍 → TTS 파이프라인으로 흘러가 첫 문장이 거의 즉시 들립니다.
           </p>
         </div>
 
         {/* Voice chat */}
         {canRender ? (
           <VoiceChat
-            key={`${selectedId}-${voiceOverride}-${speed}-${resetKey}`}
+            key={`${selectedId}-${voiceOverride}-${speed}-${bargeIn}-${resetKey}`}
             systemPrompt={active.systemPrompt}
             initialMessage={active.initialMessage}
             speakerLabel={active.speakerLabel}
             accentColor={active.accentColor}
             serverVoice={active.voice}
             speed={speed}
+            bargeIn={bargeIn}
           />
         ) : (
           <div
@@ -400,6 +412,7 @@ export default function LabVoicePage() {
   accentColor="${active.accentColor}"
   serverVoice="${active.voice}"
   speed={${speed.toFixed(2)}}
+  bargeIn={${bargeIn}}
 />`}
           </pre>
           <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>

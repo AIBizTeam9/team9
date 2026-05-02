@@ -196,3 +196,145 @@ export function cancelSpeak(): void {
     window.speechSynthesis.cancel();
   }
 }
+
+// ----------------------------------------------------------------------
+// 문장 단위 LLM→TTS 파이프라인을 위한 유틸리티들
+
+// 들어오는 텍스트 청크를 버퍼링했다가 문장 경계가 완성되면 뱉는다.
+// 한국어 종결어미(.!?) 또는 줄바꿈 기준. 종결 부호 뒤에 공백/끝이 있어야 진짜 경계.
+export class SentenceBuffer {
+  private buf = "";
+
+  push(chunk: string): string[] {
+    this.buf += chunk;
+    return this.drain(false);
+  }
+
+  flush(): string[] {
+    return this.drain(true);
+  }
+
+  private drain(final: boolean): string[] {
+    const out: string[] = [];
+    while (true) {
+      const idx = this.findBoundary();
+      if (idx === -1) break;
+      const sentence = this.buf.slice(0, idx + 1).trim();
+      this.buf = this.buf.slice(idx + 1);
+      if (sentence.length > 0) out.push(sentence);
+    }
+    if (final) {
+      const remainder = this.buf.trim();
+      this.buf = "";
+      if (remainder.length > 0) out.push(remainder);
+    }
+    return out;
+  }
+
+  private findBoundary(): number {
+    for (let i = 0; i < this.buf.length; i++) {
+      const c = this.buf[i];
+      if (c === "." || c === "!" || c === "?" || c === "\n") {
+        const next = this.buf[i + 1];
+        if (next === undefined || /\s/.test(next)) return i;
+      }
+    }
+    return -1;
+  }
+}
+
+// 여러 문장의 TTS를 병렬 prefetch하면서 순서대로 재생.
+// AudioContext + AnalyserNode가 주어지면 출력을 거기로 라우팅 (파형 시각화용).
+export type TTSQueueOptions = {
+  audioCtx?: AudioContext | null;
+  analyser?: AnalyserNode | null;
+  voice: ServerVoiceId;
+  speed: number;
+  onSpeakingChange?: (speaking: boolean) => void;
+};
+
+export class TTSQueue {
+  private items: HTMLAudioElement[] = [];
+  private current: HTMLAudioElement | null = null;
+  private opts: TTSQueueOptions;
+  private cancelled = false;
+
+  constructor(opts: TTSQueueOptions) {
+    this.opts = opts;
+  }
+
+  enqueue(text: string): void {
+    if (!text.trim()) return;
+    this.cancelled = false;
+
+    const params = new URLSearchParams({
+      text,
+      voice: this.opts.voice,
+      speed: String(this.opts.speed),
+    });
+    const url = `/api/tts?${params.toString()}`;
+
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = url; // 즉시 다운로드 시작 (병렬 prefetch)
+
+    if (this.opts.audioCtx && this.opts.analyser) {
+      try {
+        const source = this.opts.audioCtx.createMediaElementSource(audio);
+        source.connect(this.opts.analyser);
+        source.connect(this.opts.audioCtx.destination);
+      } catch {
+        // 이미 연결된 element — 무시
+      }
+    }
+
+    this.items.push(audio);
+    this.tryPlay();
+  }
+
+  private tryPlay(): void {
+    if (this.cancelled || this.current || this.items.length === 0) return;
+    const next = this.items.shift()!;
+    this.current = next;
+    this.opts.onSpeakingChange?.(true);
+
+    const advance = () => {
+      if (this.current === next) this.current = null;
+      if (this.items.length > 0 && !this.cancelled) {
+        this.tryPlay();
+      } else {
+        this.opts.onSpeakingChange?.(false);
+      }
+    };
+
+    next.onended = advance;
+    next.onerror = advance;
+    next.play().catch(advance);
+  }
+
+  cancel(): void {
+    this.cancelled = true;
+    if (this.current) {
+      try {
+        this.current.pause();
+      } catch {
+        // ignore
+      }
+      this.current = null;
+    }
+    for (const a of this.items) {
+      try {
+        a.pause();
+        a.src = "";
+      } catch {
+        // ignore
+      }
+    }
+    this.items = [];
+    this.opts.onSpeakingChange?.(false);
+  }
+
+  isActive(): boolean {
+    return !this.cancelled && (this.current !== null || this.items.length > 0);
+  }
+}

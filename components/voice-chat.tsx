@@ -4,30 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelSpeak,
   getSpeechRecognition,
-  pickKoreanVoice,
-  speak,
+  SentenceBuffer,
+  TTSQueue,
   type ServerVoiceId,
   type SpeechRecognitionLike,
-  type VoiceChatResponse,
   type VoiceMessage,
 } from "@/lib/voice";
+import VoiceWaveform from "./voice-waveform";
 
 type Status = "idle" | "speaking" | "listening" | "thinking" | "error";
 
 export type VoiceChatProps = {
-  // 페르소나/역할 정의. 페이지마다 다르게.
   systemPrompt: string;
-  // 대화를 여는 첫 메시지 (assistant 발화). 마운트 시 자동 재생되지는 않음 — 사용자가 시작 버튼 누르면 재생.
   initialMessage: string;
-  // 화면에 표시할 라벨 (예: "미래의 나", "롤모델 — 일론 머스크")
   speakerLabel?: string;
-  // 추가 톤 표시(선택)
   accentColor?: string;
-  // OpenAI TTS 보이스 (자연스러운 음성). 기본 nova.
   serverVoice?: ServerVoiceId;
-  // 발화 속도 (0.5–2.0). 기본 1.0.
   speed?: number;
+  // barge-in (AI 발화 중 사용자가 말하면 자동 끊고 듣기). 기본 on.
+  bargeIn?: boolean;
 };
+
+// Barge-in 임계값 — 마이크 평균 byte freq amplitude(0~255).
+// 너무 낮으면 잡음에 끊기고, 너무 높으면 작은 목소리에 반응 안 함.
+const BARGE_IN_THRESHOLD = 28;
+const BARGE_IN_REQUIRED_FRAMES = 6; // ~100ms @ 60fps
 
 export default function VoiceChat({
   systemPrompt,
@@ -36,58 +37,143 @@ export default function VoiceChat({
   accentColor = "var(--warm)",
   serverVoice = "nova",
   speed = 1.0,
+  bargeIn = true,
 }: VoiceChatProps) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
+  const [streamingText, setStreamingText] = useState<string>(""); // 현재 스트리밍 중인 어시스턴트 텍스트
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [supported, setSupported] = useState<{ tts: boolean; stt: boolean }>({
-    tts: false,
-    stt: false,
-  });
   const [started, setStarted] = useState(false);
+  const [activeAnalyser, setActiveAnalyser] =
+    useState<AnalyserNode | null>(null);
 
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  const recRef = useRef<SpeechRecognitionLike | null>(null);
+  // refs (이벤트 핸들러에서 최신 값 접근하려고)
+  const statusRef = useRef<Status>("idle");
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+  const messagesRef = useRef<VoiceMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const outputAnalyserRef = useRef<AnalyserNode | null>(null);
+  const ttsQueueRef = useRef<TTSQueue | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const vadRafRef = useRef<number | null>(null);
+  const sttSupportedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    const tts = typeof window !== "undefined" && !!window.speechSynthesis;
-    const stt = !!getSpeechRecognition();
-    setSupported({ tts, stt });
-
-    if (tts) {
-      const apply = () => {
-        voiceRef.current = pickKoreanVoice();
-      };
-      apply();
-      window.speechSynthesis.onvoiceschanged = apply;
-    }
-
+    sttSupportedRef.current = !!getSpeechRecognition();
     return () => {
-      cancelSpeak();
-      recRef.current?.stop();
+      cleanupAll();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const sayAndAppend = useCallback(
-    async (text: string) => {
-      setMessages((prev) => [...prev, { role: "assistant", content: text }]);
-      setStatus("speaking");
-      await speak(text, {
-        serverVoice,
-        speed,
-        fallbackVoice: voiceRef.current,
-      });
-      setStatus("idle");
+  const cleanupAll = useCallback(() => {
+    if (vadRafRef.current !== null) {
+      cancelAnimationFrame(vadRafRef.current);
+      vadRafRef.current = null;
+    }
+    ttsQueueRef.current?.cancel();
+    cancelSpeak();
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    if (micStreamRef.current) {
+      for (const track of micStreamRef.current.getTracks()) track.stop();
+      micStreamRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+  }, []);
+
+  // ---------- core LLM streaming ----------
+  const streamLLM = useCallback(
+    async (userMessages: VoiceMessage[]) => {
+      const sentenceBuf = new SentenceBuffer();
+      let fullText = "";
+      setStreamingText("");
+      setStatus("thinking");
+      setActiveAnalyser(outputAnalyserRef.current);
+
+      try {
+        const res = await fetch("/api/voice-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ systemPrompt, messages: userMessages }),
+        });
+        if (!res.ok || !res.body) {
+          const errBody = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(errBody.error ?? `요청 실패 (${res.status})`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let lineBuf = "";
+
+        const dispatchSentences = (sentences: string[]) => {
+          if (sentences.length === 0) return;
+          if (statusRef.current !== "speaking") setStatus("speaking");
+          for (const s of sentences) ttsQueueRef.current?.enqueue(s);
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          lineBuf += decoder.decode(value, { stream: true });
+          const lines = lineBuf.split("\n");
+          lineBuf = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const payload = line.slice(6).trim();
+            if (!payload) continue;
+            if (payload === "[DONE]") continue;
+            try {
+              const data = JSON.parse(payload) as {
+                delta?: string;
+                error?: string;
+              };
+              if (data.error) throw new Error(data.error);
+              if (data.delta) {
+                fullText += data.delta;
+                setStreamingText(fullText);
+                dispatchSentences(sentenceBuf.push(data.delta));
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue; // 부분 SSE
+              throw e;
+            }
+          }
+        }
+
+        dispatchSentences(sentenceBuf.flush());
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: fullText },
+        ]);
+        setStreamingText("");
+      } catch (err) {
+        setErrorMsg(
+          err instanceof Error ? err.message : "응답을 가져오지 못했습니다.",
+        );
+        setStatus("error");
+        setStreamingText("");
+      }
     },
-    [serverVoice, speed],
+    [systemPrompt],
   );
 
-  const handleStart = useCallback(async () => {
-    setStarted(true);
-    setErrorMsg(null);
-    await sayAndAppend(initialMessage);
-  }, [initialMessage, sayAndAppend]);
-
+  // ---------- listening (STT) ----------
   const handleListen = useCallback(() => {
     setErrorMsg(null);
     const rec = getSpeechRecognition();
@@ -96,8 +182,9 @@ export default function VoiceChat({
       setStatus("error");
       return;
     }
-    recRef.current = rec;
+    recognitionRef.current = rec;
     setStatus("listening");
+    setActiveAnalyser(micAnalyserRef.current);
 
     rec.onresult = async (e) => {
       const last = e.results[e.results.length - 1];
@@ -105,57 +192,151 @@ export default function VoiceChat({
       if (!transcript) return;
 
       const userMsg: VoiceMessage = { role: "user", content: transcript };
-      const next = [...messages, userMsg];
+      const next = [...messagesRef.current, userMsg];
       setMessages(next);
-      setStatus("thinking");
-
-      try {
-        const res = await fetch("/api/voice-chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ systemPrompt, messages: next }),
-        });
-        if (!res.ok) {
-          const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(errBody.error ?? `요청 실패 (${res.status})`);
-        }
-        const data = (await res.json()) as VoiceChatResponse;
-        await sayAndAppend(data.reply);
-      } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "응답을 가져오지 못했습니다.");
+      await streamLLM(next);
+    };
+    rec.onerror = (e) => {
+      // "no-speech"는 정상적인 침묵 종료 — 에러로 표시 안 함
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        setErrorMsg(`음성 인식 오류: ${e.error}`);
         setStatus("error");
+      } else if (statusRef.current === "listening") {
+        setStatus("idle");
       }
     };
-
-    rec.onerror = (e) => {
-      setErrorMsg(`음성 인식 오류: ${e.error}`);
-      setStatus("error");
-    };
-
     rec.onend = () => {
-      setStatus((s) => (s === "listening" ? "idle" : s));
+      if (statusRef.current === "listening") setStatus("idle");
     };
 
     try {
       rec.start();
     } catch {
-      // already started — ignore
+      // 이미 시작됨
     }
-  }, [messages, systemPrompt, sayAndAppend]);
+  }, [streamLLM]);
+
+  // ---------- barge-in: VAD loop ----------
+  const startVAD = useCallback(() => {
+    const analyser = micAnalyserRef.current;
+    if (!analyser) return;
+    const buffer = new Uint8Array(analyser.frequencyBinCount);
+    let loudFrames = 0;
+
+    const tick = () => {
+      analyser.getByteFrequencyData(buffer);
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+      const avg = sum / buffer.length;
+
+      if (
+        bargeIn &&
+        statusRef.current === "speaking" &&
+        avg > BARGE_IN_THRESHOLD
+      ) {
+        loudFrames++;
+        if (loudFrames >= BARGE_IN_REQUIRED_FRAMES) {
+          loudFrames = 0;
+          ttsQueueRef.current?.cancel();
+          if (sttSupportedRef.current) {
+            handleListen();
+          } else {
+            setStatus("idle");
+          }
+          // 한 번 트리거되면 다음 speaking까지 쉼
+        }
+      } else {
+        loudFrames = 0;
+      }
+
+      vadRafRef.current = requestAnimationFrame(tick);
+    };
+    vadRafRef.current = requestAnimationFrame(tick);
+  }, [bargeIn, handleListen]);
+
+  // ---------- start ----------
+  const handleStart = useCallback(async () => {
+    setErrorMsg(null);
+    try {
+      // 1) AudioContext + mic stream
+      const AudioCtx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const ctx = new AudioCtx();
+      audioCtxRef.current = ctx;
+      if (ctx.state === "suspended") await ctx.resume();
+
+      // mic permission (echoCancellation으로 스피커 → 마이크 leak 줄임)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      micStreamRef.current = stream;
+
+      const micSource = ctx.createMediaStreamSource(stream);
+      const micAnalyser = ctx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyser.smoothingTimeConstant = 0.6;
+      micSource.connect(micAnalyser);
+      micAnalyserRef.current = micAnalyser;
+
+      const outputAnalyser = ctx.createAnalyser();
+      outputAnalyser.fftSize = 256;
+      outputAnalyser.smoothingTimeConstant = 0.7;
+      outputAnalyserRef.current = outputAnalyser;
+
+      // 2) TTS queue
+      ttsQueueRef.current = new TTSQueue({
+        audioCtx: ctx,
+        analyser: outputAnalyser,
+        voice: serverVoice,
+        speed,
+        onSpeakingChange: (speaking) => {
+          if (!speaking && statusRef.current === "speaking") {
+            setStatus("idle");
+          }
+        },
+      });
+
+      // 3) VAD loop
+      startVAD();
+
+      // 4) initial message
+      setStarted(true);
+      const initialMsg: VoiceMessage = {
+        role: "assistant",
+        content: initialMessage,
+      };
+      setMessages([initialMsg]);
+      setStatus("speaking");
+      setActiveAnalyser(outputAnalyser);
+      ttsQueueRef.current.enqueue(initialMessage);
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? `시작 실패: ${err.message}`
+          : "마이크 권한이 필요합니다.",
+      );
+      setStatus("error");
+    }
+  }, [initialMessage, serverVoice, speed, startVAD]);
 
   const handleStop = useCallback(() => {
-    recRef.current?.stop();
-    cancelSpeak();
+    ttsQueueRef.current?.cancel();
+    recognitionRef.current?.stop();
     setStatus("idle");
   }, []);
 
-  if (!supported.tts) {
-    return (
-      <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-5 text-[13px] text-[var(--ink-3)]">
-        이 브라우저는 음성 합성을 지원하지 않습니다. Chrome 또는 Edge에서 열어주세요.
-      </div>
-    );
-  }
+  // status가 변할 때 active analyser도 같이 바꿈
+  useEffect(() => {
+    if (status === "speaking") setActiveAnalyser(outputAnalyserRef.current);
+    else if (status === "listening") setActiveAnalyser(micAnalyserRef.current);
+    else if (status === "idle") setActiveAnalyser(null);
+  }, [status]);
 
   return (
     <div
@@ -172,8 +353,49 @@ export default function VoiceChat({
             {speakerLabel}
           </span>
         </div>
-        <StatusPill status={status} />
+        <div className="flex items-center gap-2">
+          {bargeIn && started && (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-[0.06em]"
+              style={{
+                background: "var(--accent-2)",
+                color: "var(--ink-3)",
+              }}
+              title="AI가 말하는 중에도 사용자가 말하면 자동으로 끊고 들음"
+            >
+              barge-in
+            </span>
+          )}
+          <StatusPill status={status} />
+        </div>
       </div>
+
+      {/* Waveform */}
+      {started && (
+        <div
+          className="mb-4 rounded-lg p-2"
+          style={{
+            background: "var(--bg)",
+            border: "1px solid var(--line)",
+          }}
+        >
+          <VoiceWaveform
+            analyser={activeAnalyser}
+            active={
+              status === "speaking" ||
+              status === "listening" ||
+              status === "thinking"
+            }
+            color={
+              status === "listening"
+                ? "var(--blue)"
+                : status === "thinking"
+                  ? "var(--green)"
+                  : accentColor
+            }
+          />
+        </div>
+      )}
 
       {!started ? (
         <button
@@ -200,12 +422,28 @@ export default function VoiceChat({
                 {m.content}
               </div>
             ))}
+            {streamingText && (
+              <div
+                className="text-[13px] leading-relaxed"
+                style={{ color: "var(--ink)" }}
+              >
+                <span className="text-[11px] uppercase tracking-[0.06em] mr-2 opacity-60">
+                  {speakerLabel}
+                </span>
+                {streamingText}
+                <span className="inline-block w-1.5 h-3 ml-0.5 bg-current opacity-50 animate-pulse align-middle" />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleListen}
-              disabled={status === "listening" || status === "thinking" || status === "speaking"}
+              disabled={
+                status === "listening" ||
+                status === "thinking" ||
+                status === "speaking"
+              }
               className="flex-1 px-4 py-2.5 rounded-full text-[13px] font-semibold transition-all disabled:opacity-40"
               style={{
                 background: status === "listening" ? accentColor : "var(--accent)",
@@ -217,8 +455,10 @@ export default function VoiceChat({
                 : status === "thinking"
                   ? "생각 중…"
                   : status === "speaking"
-                    ? "말하는 중…"
-                    : supported.stt
+                    ? bargeIn
+                      ? "말하는 중… (말 걸어 끊을 수 있음)"
+                      : "말하는 중…"
+                    : sttSupportedRef.current
                       ? "🎤 말하기"
                       : "음성 인식 미지원"}
             </button>
@@ -234,7 +474,7 @@ export default function VoiceChat({
             </button>
           </div>
 
-          {!supported.stt && (
+          {!sttSupportedRef.current && (
             <p className="text-[11px] mt-2 text-[var(--ink-3)]">
               음성 인식 미지원 브라우저입니다. Chrome 또는 Edge에서 마이크 입력이 가능합니다.
             </p>
