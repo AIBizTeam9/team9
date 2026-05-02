@@ -28,9 +28,11 @@ export const metadata: Metadata = {
 const NAV_ITEMS = [
   { href: "/next-step", label: "90일 플랜" },
   { href: "/letter", label: "미래의 나에게" },
+  { href: "/rolemodel", label: "롤모델" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
-  { href: "/docs/setup-guide.html", label: "개발가이드" },
+  { href: "/lab", label: "실험실" },
+  { href: "/setup-guide", label: "개발가이드" },
 ];
 
 export default function RootLayout({

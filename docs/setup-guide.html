@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>개발가이드 - Next Step in Life</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -25,6 +28,9 @@
             height: 56px;
             display: flex;
             align-items: center;
+            /* layout.tsx의 next/font/google Inter와 시각적으로 일치시키기 위해
+               site-nav 영역에만 Inter 강제 적용 (본문은 기존 Segoe UI 유지). */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         .site-nav .nav-inner {
@@ -323,9 +329,8 @@
             <span>Next Step in Life</span>
         </a>
         <div class="nav-links">
-            <a href="/quiz">퀴즈</a>
-            <a href="/debate">디베이트</a>
-            <a href="/plan">90일 플랜</a>
+            <a href="/next-step">90일 플랜</a>
+            <a href="/letter">미래의 나에게</a>
             <a href="/market">시장 인사이트</a>
             <a href="/resources">리소스</a>
             <a href="/docs/setup-guide.html" class="active">개발가이드</a>

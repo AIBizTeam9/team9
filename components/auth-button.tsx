@@ -73,6 +73,15 @@ export default function AuthButton() {
               <p className="text-[12px] font-medium truncate" style={{ color: "var(--ink)" }}>{name}</p>
               <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{user.email}</p>
             </div>
+            <Link
+              href="/account"
+              onClick={() => setMenuOpen(false)}
+              className="block w-full text-left px-3 py-2 text-[13px] transition-colors hover:bg-[var(--accent-2)]"
+              style={{ color: "var(--ink-2)" }}
+            >
+              내 정보
+            </Link>
+            <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
             <button
               onClick={async () => {
                 await signOut();

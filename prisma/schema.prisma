@@ -9,6 +9,7 @@ datasource db {
 
 model Session {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?  @map("user_id")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
   quizAnswers Json?    @map("quiz_answers")
   personaA    Json?    @map("persona_a")
@@ -17,6 +18,7 @@ model Session {
 
   conversations Conversation[]
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -32,4 +34,16 @@ model Conversation {
 
   @@index([sessionId])
   @@map("conversations")
+}
+
+model Bookmark {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id")
+  itemType  String   @map("item_type")
+  itemId    String   @map("item_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, itemType, itemId])
+  @@index([userId])
+  @@map("bookmarks")
 }
