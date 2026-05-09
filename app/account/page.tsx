@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { getUser, onAuthChange, signOut } from "@/lib/auth";
+import { loadSummaryDB, type WhyTreeSummary } from "@/lib/whytree/db";
 
 type ActivityCard = {
   href: string;
@@ -89,15 +90,23 @@ export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [whytreeSummary, setWhytreeSummary] = useState<WhyTreeSummary | null>(
+    null,
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    getUser().then((u) => {
+    getUser().then(async (u) => {
       if (!mounted) return;
       setUser(u);
       setLoading(false);
-      if (!u) router.replace("/login");
+      if (!u) {
+        router.replace("/login");
+        return;
+      }
+      const summary = await loadSummaryDB(u.id);
+      if (mounted) setWhytreeSummary(summary);
     });
 
     const { data } = onAuthChange((u) => {
@@ -105,6 +114,9 @@ export default function AccountPage() {
       const next = u as User | null;
       setUser(next);
       if (!next) router.replace("/login");
+      else {
+        loadSummaryDB(next.id).then((s) => mounted && setWhytreeSummary(s));
+      }
     });
 
     return () => {
@@ -323,6 +335,105 @@ export default function AccountPage() {
             ))}
           </div>
 
+          {/* Why Tree 대화 기록 — 로그인 사용자에게만 의미가 있는 영역 */}
+          <div className="mt-8">
+            <p
+              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Why Tree · 대화 기록
+            </p>
+            <Link
+              href="/account/whytree"
+              className="group block rounded-2xl p-5 transition-all hover:shadow-lg"
+              style={{
+                background: "var(--bg-2)",
+                border: "1px solid var(--line)",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <span
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: "var(--blue-soft)" }}
+                >
+                  🌳
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3
+                    className="font-serif text-[16px] tracking-[-0.01em] mb-0.5"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    지나간 대화들
+                  </h3>
+                  <p
+                    className="text-[12px] leading-relaxed"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    {whytreeSummary === null
+                      ? "불러오는 중…"
+                      : whytreeSummary.hasData
+                        ? `대화 ${whytreeSummary.messageCount}개 · 노드 ${whytreeSummary.nodeCount}개${
+                            whytreeSummary.lastMessageAt
+                              ? ` · 마지막 ${formatRelative(
+                                  whytreeSummary.lastMessageAt,
+                                )}`
+                              : ""
+                          }`
+                        : "아직 시작된 대화가 없어요. Why 트리에서 첫 질문을 받아보세요."}
+                  </p>
+                </div>
+              </div>
+
+              {whytreeSummary?.hasData && (
+                <dl
+                  className="grid gap-2 text-[12px] pt-3"
+                  style={{ borderTop: "1px solid var(--line)" }}
+                >
+                  {whytreeSummary.purpose && (
+                    <div className="flex gap-3">
+                      <dt
+                        className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        목적
+                      </dt>
+                      <dd
+                        className="flex-1 font-serif"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {whytreeSummary.purpose}
+                      </dd>
+                    </div>
+                  )}
+                  {whytreeSummary.experimentLabel && (
+                    <div className="flex gap-3">
+                      <dt
+                        className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                        style={{ color: "var(--green)" }}
+                      >
+                        실험
+                      </dt>
+                      <dd
+                        className="flex-1"
+                        style={{ color: "var(--ink-2)" }}
+                      >
+                        {whytreeSummary.experimentLabel}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+
+              <div
+                className="flex items-center justify-end mt-3 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: "var(--blue)" }}
+              >
+                대화 기록 보기 →
+              </div>
+            </Link>
+          </div>
+
           <p
             className="text-[11px] mt-5"
             style={{ color: "var(--ink-3)" }}
@@ -333,6 +444,20 @@ export default function AccountPage() {
       </main>
     </div>
   );
+}
+
+function formatRelative(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}일 전`;
+  return new Date(iso).toLocaleDateString("ko-KR");
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {

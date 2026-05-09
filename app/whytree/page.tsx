@@ -1,13 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
 import WhyTreeView from "@/components/whytree/tree-view";
+import { getUser, onAuthChange } from "@/lib/auth";
 import {
-  clearAll,
-  loadMessages,
-  loadTree,
-  saveMessages,
-  saveTree,
+  appendMessageDB,
+  clearWhyTreeDB,
+  loadMessagesDB,
+  loadTreeDB,
+  saveTreeDB,
+} from "@/lib/whytree/db";
+import {
+  clearAll as clearLocal,
+  loadMessages as loadLocalMessages,
+  loadTree as loadLocalTree,
+  saveMessages as saveLocalMessages,
+  saveTree as saveLocalTree,
 } from "@/lib/whytree/storage";
 import { newTree } from "@/lib/whytree/tree-ops";
 import type { ChatMessage, WhyTree } from "@/lib/whytree/types";
@@ -20,24 +30,74 @@ export default function WhyTreePage() {
   const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // 클라이언트 mount 후 localStorage hydrate
+  // 로그인 상태 + 데이터 hydrate
   useEffect(() => {
-    setTree(loadTree());
-    setMessages(loadMessages());
-    setHydrated(true);
+    let active = true;
+
+    const init = async () => {
+      const u = await getUser();
+      if (!active) return;
+      setUser(u);
+
+      if (u) {
+        // DB에서 로드 (실패하면 빈 트리)
+        const [t, m] = await Promise.all([
+          loadTreeDB(u.id),
+          loadMessagesDB(u.id),
+        ]);
+        if (!active) return;
+        setTree(t);
+        setMessages(m);
+      } else {
+        // 비로그인: localStorage 폴백
+        setTree(loadLocalTree());
+        setMessages(loadLocalMessages());
+      }
+      setHydrated(true);
+    };
+
+    init();
+
+    const { data } = onAuthChange((u) => {
+      if (!active) return;
+      const next = u as User | null;
+      setUser(next);
+      // 로그인/로그아웃 시 데이터 다시 로드
+      if (next) {
+        Promise.all([loadTreeDB(next.id), loadMessagesDB(next.id)]).then(
+          ([t, m]) => {
+            if (!active) return;
+            setTree(t);
+            setMessages(m);
+          },
+        );
+      } else {
+        setTree(loadLocalTree());
+        setMessages(loadLocalMessages());
+      }
+    });
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
+  // 비로그인 사용자만 localStorage 동기화
   useEffect(() => {
-    if (hydrated) saveTree(tree);
-  }, [tree, hydrated]);
+    if (!hydrated || user) return;
+    saveLocalTree(tree);
+  }, [tree, hydrated, user]);
 
   useEffect(() => {
-    if (hydrated) saveMessages(messages);
-  }, [messages, hydrated]);
+    if (!hydrated || user) return;
+    saveLocalMessages(messages);
+  }, [messages, hydrated, user]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -60,6 +120,13 @@ export default function WhyTreePage() {
       setStreaming(true);
       setStreamingText("");
 
+      // 로그인 사용자: 사용자 메시지를 즉시 DB에 저장
+      if (user) {
+        appendMessageDB(user.id, userMsg).catch(() => {
+          // 저장 실패해도 진행 — 다음 페이지 로드 시 누락은 가능
+        });
+      }
+
       try {
         const res = await fetch("/api/whytree", {
           method: "POST",
@@ -77,6 +144,7 @@ export default function WhyTreePage() {
         const decoder = new TextDecoder();
         let lineBuf = "";
         let assistantText = "";
+        let finalTree: WhyTree | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -100,11 +168,11 @@ export default function WhyTreePage() {
                 assistantText += evt.delta;
                 setStreamingText(assistantText);
               } else if (evt.type === "tree" && evt.tree) {
+                finalTree = evt.tree;
                 setTree(evt.tree);
               } else if (evt.type === "error" && evt.message) {
                 throw new Error(evt.message);
               }
-              // tool 이벤트는 UI에 별도로 표시하지 않음 — tree 갱신으로 충분
             } catch (e) {
               if (e instanceof SyntaxError) continue;
               throw e;
@@ -112,27 +180,36 @@ export default function WhyTreePage() {
           }
         }
 
-        if (assistantText.trim()) {
-          setMessages((prev) => [
-            ...prev,
-            {
+        const assistantMsg: ChatMessage | null = assistantText.trim()
+          ? {
               role: "assistant",
               content: assistantText.trim(),
               ts: new Date().toISOString(),
-            },
-          ]);
+            }
+          : null;
+        if (assistantMsg) {
+          setMessages((prev) => [...prev, assistantMsg]);
         }
         setStreamingText("");
+
+        // 로그인 사용자: 어시스턴트 메시지 + 최종 트리 저장
+        if (user) {
+          await Promise.all([
+            assistantMsg ? appendMessageDB(user.id, assistantMsg) : null,
+            finalTree ? saveTreeDB(user.id, finalTree) : null,
+          ]);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "응답을 가져오지 못했습니다.");
+        setError(
+          err instanceof Error ? err.message : "응답을 가져오지 못했습니다.",
+        );
         setStreamingText("");
       } finally {
         setStreaming(false);
-        // 다음 입력에 포커스
         setTimeout(() => inputRef.current?.focus(), 0);
       }
     },
-    [messages, streaming, tree],
+    [messages, streaming, tree, user],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -142,17 +219,28 @@ export default function WhyTreePage() {
     }
   };
 
-  const handleReset = useCallback(() => {
-    if (!confirm("정말 초기화할까요? 트리와 대화가 모두 사라집니다.")) return;
-    clearAll();
+  const handleReset = useCallback(async () => {
+    if (
+      !confirm(
+        user
+          ? "정말 초기화할까요? 트리와 대화 기록이 영구 삭제됩니다."
+          : "정말 초기화할까요? 트리와 대화가 모두 사라집니다.",
+      )
+    )
+      return;
+
+    if (user) {
+      await clearWhyTreeDB(user.id);
+    } else {
+      clearLocal();
+    }
     setTree(newTree());
     setMessages([]);
     setStreamingText("");
     setError(null);
-  }, []);
+  }, [user]);
 
   const handleStart = useCallback(() => {
-    // 트리가 비어있고 메시지도 없을 때 첫 인사말을 받기 위해 빈 user 시작 트리거
     handleSend("안녕하세요. 시작할 준비가 됐어요.");
   }, [handleSend]);
 
@@ -178,12 +266,35 @@ export default function WhyTreePage() {
           >
             답은 바깥에 있지 않아요 — 내 안에 있습니다. 솔직하게 답하다 보면
             트리가 자라고, 마지막엔 오늘 시도해볼 작은 실험 한 가지가 남습니다.
-            대화는 이 브라우저에만 저장됩니다.
           </p>
+          {user ? (
+            <p className="text-[12px] mt-2" style={{ color: "var(--ink-3)" }}>
+              로그인 상태 — 대화와 트리는{" "}
+              <Link
+                href="/account"
+                className="underline"
+                style={{ color: "var(--ink-2)" }}
+              >
+                내 정보
+              </Link>
+              에서 다시 볼 수 있어요.
+            </p>
+          ) : (
+            <p className="text-[12px] mt-2" style={{ color: "var(--ink-3)" }}>
+              비로그인 상태 — 이 브라우저에만 임시 저장됩니다.{" "}
+              <Link
+                href="/login"
+                className="underline"
+                style={{ color: "var(--ink-2)" }}
+              >
+                로그인
+              </Link>
+              하면 대화 기록을 다시 볼 수 있어요.
+            </p>
+          )}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_minmax(320px,420px)]">
-          {/* 좌측: 채팅 */}
           <div
             className="rounded-2xl p-6 flex flex-col"
             style={{
@@ -294,7 +405,6 @@ export default function WhyTreePage() {
             </div>
           </div>
 
-          {/* 우측: 트리 */}
           <div className="space-y-3">
             <WhyTreeView tree={tree} />
             <p
@@ -323,9 +433,7 @@ function ChatBubble({
 }) {
   const isUser = role === "user";
   return (
-    <div
-      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-    >
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className="max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap"
         style={{
