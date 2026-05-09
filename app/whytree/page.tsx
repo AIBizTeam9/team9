@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import WhyTreeView from "@/components/whytree/tree-view";
-import { getUser, onAuthChange } from "@/lib/auth";
+import { getUser, onAuthChange, signInWithGoogle } from "@/lib/auth";
 import {
   appendMessageDB,
   deleteTreeForDate,
@@ -13,13 +13,6 @@ import {
   saveTreeForDate,
   todayDateString,
 } from "@/lib/whytree/db";
-import {
-  clearLocal,
-  loadLocalMessages,
-  loadLocalTree,
-  saveLocalMessages,
-  saveLocalTree,
-} from "@/lib/whytree/storage";
 import { newTree } from "@/lib/whytree/tree-ops";
 import type { ChatMessage, WhyTree } from "@/lib/whytree/types";
 
@@ -56,10 +49,8 @@ export default function WhyTreePage() {
         } catch (e) {
           console.error("DB load failed", e);
         }
-      } else {
-        setTree(loadLocalTree(date));
-        setMessages(loadLocalMessages(date));
       }
+      // 비로그인 사용자는 데이터를 로드하지 않음 — 로그인 게이트가 보이고 채팅 자체가 비활성.
       setHydrated(true);
     };
     init();
@@ -76,9 +67,9 @@ export default function WhyTreePage() {
           setMessages(bundle.messages);
         });
       } else {
-        setTree(loadLocalTree(date));
+        setTree(newTree(`${date} 트리`));
         setTreeId(null);
-        setMessages(loadLocalMessages(date));
+        setMessages([]);
       }
     });
 
@@ -88,17 +79,6 @@ export default function WhyTreePage() {
     };
   }, [date]);
 
-  // 비로그인 사용자 — localStorage 동기화
-  useEffect(() => {
-    if (!hydrated || user) return;
-    saveLocalTree(date, tree);
-  }, [tree, hydrated, user, date]);
-
-  useEffect(() => {
-    if (!hydrated || user) return;
-    saveLocalMessages(date, messages);
-  }, [messages, hydrated, user, date]);
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, streamingText]);
@@ -107,6 +87,9 @@ export default function WhyTreePage() {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || streaming) return;
+
+      // 비로그인 가드 — UI에서도 게이트로 막혀 있지만 안전장치.
+      if (!user) return;
 
       setError(null);
       const userMsg: ChatMessage = {
@@ -229,20 +212,14 @@ export default function WhyTreePage() {
   };
 
   const handleReset = useCallback(async () => {
+    if (!user) return;
     if (
       !confirm(
-        user
-          ? "오늘의 트리와 대화 기록이 영구 삭제됩니다. 다른 날짜의 트리는 유지됩니다."
-          : "오늘의 임시 저장 트리가 삭제됩니다.",
+        "오늘의 트리와 대화 기록을 지웁니다. 다른 날짜의 트리는 그대로 남아요.",
       )
     )
       return;
-
-    if (user) {
-      await deleteTreeForDate(user.id, date);
-    } else {
-      clearLocal(date);
-    }
+    await deleteTreeForDate(user.id, date);
     setTree(newTree(`${date} 트리`));
     setTreeId(null);
     setMessages([]);
@@ -281,10 +258,8 @@ export default function WhyTreePage() {
           </p>
         </div>
 
-        {/* 로그인 권유 배너 (비로그인 사용자만) */}
-        {hydrated && !user && (
-          <LoginBanner />
-        )}
+        {/* 비로그인 — 게이트만 보여주고 채팅 영역은 렌더하지 않음 */}
+        {hydrated && !user && <LoginGate />}
 
         {/* 로그인 사용자 — 지난 기록 빠른 링크 */}
         {hydrated && user && (
@@ -296,7 +271,7 @@ export default function WhyTreePage() {
             }}
           >
             <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
-              로그인 상태 — 오늘의 트리는 자동으로 저장됩니다.
+              어제 트리가 궁금해요?
             </p>
             <Link
               href="/account/whytree"
@@ -312,6 +287,7 @@ export default function WhyTreePage() {
           </div>
         )}
 
+        {hydrated && user && (
         <div className="grid gap-6 lg:grid-cols-[1fr_minmax(320px,420px)]">
           <div
             className="rounded-2xl p-6 flex flex-col"
@@ -430,66 +406,168 @@ export default function WhyTreePage() {
               style={{ color: "var(--ink-3)" }}
             >
               매일의 트리는 그날의 기록입니다. 어제의 트리가 궁금하면{" "}
-              {user ? (
-                <Link
-                  href="/account/whytree"
-                  className="underline"
-                  style={{ color: "var(--ink-2)" }}
-                >
-                  지난 기록
-                </Link>
-              ) : (
-                <Link
-                  href="/login"
-                  className="underline"
-                  style={{ color: "var(--ink-2)" }}
-                >
-                  로그인
-                </Link>
-              )}
+              <Link
+                href="/account/whytree"
+                className="underline"
+                style={{ color: "var(--ink-2)" }}
+              >
+                지난 기록
+              </Link>
               으로.
             </p>
           </div>
         </div>
+        )}
       </section>
     </div>
   );
 }
 
-function LoginBanner() {
+function LoginGate() {
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const onGoogle = async () => {
+    setPending(true);
+    setErr(null);
+    try {
+      await signInWithGoogle();
+      // 리다이렉트되므로 setPending(false) 도달 안 함
+    } catch (e) {
+      setPending(false);
+      setErr(
+        e instanceof Error ? e.message : "구글 로그인 시작에 실패했어요.",
+      );
+    }
+  };
+
   return (
     <div
-      className="mb-6 rounded-2xl p-5 flex items-start gap-4"
+      className="rounded-2xl p-7 sm:p-8 max-w-[680px]"
       style={{
-        background: "var(--warm-soft)",
-        border: "1px solid var(--warm)",
+        background: "var(--bg-2)",
+        border: "1px solid var(--line)",
+        boxShadow: "var(--shadow)",
       }}
     >
-      <span className="text-2xl flex-shrink-0">🌱</span>
-      <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-2xl">🌱</span>
         <p
-          className="text-[13px] font-semibold mb-1"
+          className="font-serif text-[20px] tracking-[-0.01em]"
           style={{ color: "var(--ink)" }}
         >
-          로그인하면 매일의 트리가 영구 저장됩니다
+          오늘 트리를 시작하려면 로그인 한 번만요
+        </p>
+      </div>
+
+      <p
+        className="text-[13px] leading-relaxed mb-5"
+        style={{ color: "var(--ink-2)" }}
+      >
+        구글 계정 한 번 누르면 끝이에요. 비밀번호 만들 필요 없고, 추가 정보
+        입력도 없습니다.
+      </p>
+
+      <ul className="space-y-2.5 mb-6">
+        <ReassureRow
+          icon="🔒"
+          title="내가 쓴 답은 나만 봐요"
+          desc="다른 사람·팀원·운영자 누구도 못 봅니다. DB에서도 본인 행만 열람되도록 잠겨 있어요."
+        />
+        <ReassureRow
+          icon="📅"
+          title="다음에 와도 이어서 할 수 있어요"
+          desc="매일의 대화가 자동으로 정리돼서, 어제 트리를 보거나 오늘 트리에 한 줄 더 적기 좋아요."
+        />
+        <ReassureRow
+          icon="🗑️"
+          title="언제든 한 번에 지울 수 있어요"
+          desc="오늘 트리는 '오늘 초기화' 버튼으로, 모두 지우려면 로그아웃 후 계정 삭제로 한 번에."
+        />
+      </ul>
+
+      <button
+        onClick={onGoogle}
+        disabled={pending}
+        className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-full text-[14px] font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
+        style={{ background: "var(--ink)" }}
+      >
+        <GoogleG />
+        {pending ? "구글로 이동 중…" : "구글 계정으로 시작"}
+      </button>
+
+      <p
+        className="text-[11px] mt-3"
+        style={{ color: "var(--ink-3)" }}
+      >
+        한 번 클릭으로 시작 · 추가 정보 입력 없음 · 비공개
+      </p>
+
+      {err && (
+        <p className="text-[12px] mt-3" style={{ color: "var(--warm)" }}>
+          {err}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ReassureRow({
+  icon,
+  title,
+  desc,
+}: {
+  icon: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <li className="flex gap-3">
+      <span className="text-[16px] flex-shrink-0 leading-relaxed">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[13px] font-semibold leading-snug"
+          style={{ color: "var(--ink)" }}
+        >
+          {title}
         </p>
         <p
-          className="text-[12px] leading-relaxed mb-3"
-          style={{ color: "var(--ink-2)" }}
+          className="text-[12px] leading-relaxed mt-0.5"
+          style={{ color: "var(--ink-3)" }}
         >
-          지금은 이 브라우저에만 임시 저장돼요. 로그인하면 일자별로 자동
-          저장되고, <strong>내 정보</strong> 페이지에서 지난 트리들을 모두
-          다시 볼 수 있어요. 매일 짧게 하기에 좋아요.
+          {desc}
         </p>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white"
-          style={{ background: "var(--warm)" }}
-        >
-          로그인하고 저장하기 →
-        </Link>
       </div>
-    </div>
+    </li>
+  );
+}
+
+function GoogleG() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 18 18"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        fill="#EA4335"
+        d="M9 3.48c1.69 0 2.85.73 3.5 1.34l2.55-2.49C13.46 1 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.96 2.3C4.65 5.07 6.66 3.48 9 3.48z"
+      />
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.74-.07-1.44-.18-2.13H9v4.02h4.84c-.21 1.13-.84 2.09-1.78 2.74v2.27h2.88c1.69-1.55 2.7-3.84 2.7-6.9z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.92 10.74c-.18-.55-.28-1.13-.28-1.74s.1-1.19.27-1.74V4.96H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.96-2.3z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.88-2.27c-.8.54-1.83.86-3.08.86-2.34 0-4.35-1.59-5.07-3.78L.96 13.04C2.44 15.98 5.48 18 9 18z"
+      />
+    </svg>
   );
 }
 
