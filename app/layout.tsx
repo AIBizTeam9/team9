@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/next-step", label: "90일 플랜" },
   { href: "/letter", label: "미래의 나에게" },
   { href: "/rolemodel", label: "롤모델" },
+  { href: "/whytree", label: "Why 트리" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
   { href: "/lab", label: "실험실" },
