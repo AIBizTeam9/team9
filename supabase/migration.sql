@@ -41,46 +41,41 @@ create policy "conversations_public_read" on public.conversations
 create policy "conversations_public_insert" on public.conversations
   for insert with check (true);
 
--- 4. Why 트리: 사용자별 트리 한 그루(JSONB)
-create table if not exists public.whytree_trees (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  tree jsonb not null,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+-- 4. Why 트리 (v2 — 일자별)
+-- 이전 v1(단일 트리) 스키마가 있으면 자동으로 정리. 데이터는 보존되지 않음 — 초기 단계.
+drop table if exists public.whytree_messages cascade;
+drop table if exists public.whytree_trees cascade;
 
--- 5. Why 트리 대화 로그: 사용자별 메시지 append-only
-create table if not exists public.whytree_messages (
+create table public.whytree_trees (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  tree jsonb not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (user_id, date)
+);
+create index idx_whytree_trees_user_date
+  on public.whytree_trees (user_id, date desc);
+
+-- 5. Why 트리 대화 로그: 트리에 종속(트리 삭제 시 cascade)
+create table public.whytree_messages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  tree_id uuid not null references public.whytree_trees(id) on delete cascade,
   role text not null check (role in ('user', 'assistant')),
   content text not null,
   created_at timestamptz default now()
 );
-create index if not exists idx_whytree_messages_user
-  on public.whytree_messages (user_id, created_at);
+create index idx_whytree_messages_tree
+  on public.whytree_messages (tree_id, created_at);
 
--- RLS — 본인 데이터만 접근 가능
+-- RLS — 본인 데이터만
 alter table public.whytree_trees enable row level security;
 alter table public.whytree_messages enable row level security;
 
-create policy "whytree_trees_owner_select" on public.whytree_trees
-  for select using (auth.uid() = user_id);
+create policy "whytree_trees_owner_all" on public.whytree_trees
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy "whytree_trees_owner_insert" on public.whytree_trees
-  for insert with check (auth.uid() = user_id);
-
-create policy "whytree_trees_owner_update" on public.whytree_trees
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "whytree_trees_owner_delete" on public.whytree_trees
-  for delete using (auth.uid() = user_id);
-
-create policy "whytree_messages_owner_select" on public.whytree_messages
-  for select using (auth.uid() = user_id);
-
-create policy "whytree_messages_owner_insert" on public.whytree_messages
-  for insert with check (auth.uid() = user_id);
-
-create policy "whytree_messages_owner_delete" on public.whytree_messages
-  for delete using (auth.uid() = user_id);
+create policy "whytree_messages_owner_all" on public.whytree_messages
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -3,35 +3,51 @@
 import type { ChatMessage, WhyTree } from "./types";
 import { newTree } from "./tree-ops";
 
-const TREE_KEY = "whytree:tree";
-const MESSAGES_KEY = "whytree:messages";
+const TREE_KEY = (date: string) => `whytree:tree:${date}`;
+const MESSAGES_KEY = (date: string) => `whytree:messages:${date}`;
+const KNOWN_DATES_KEY = "whytree:dates";
 
-export function loadTree(): WhyTree {
-  if (typeof window === "undefined") return newTree();
-  try {
-    const raw = localStorage.getItem(TREE_KEY);
-    if (!raw) return newTree();
-    const parsed = JSON.parse(raw) as WhyTree;
-    if (parsed.schemaVersion !== 1) return newTree();
-    return parsed;
-  } catch {
-    return newTree();
-  }
-}
-
-export function saveTree(tree: WhyTree): void {
+function rememberDate(date: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(TREE_KEY, JSON.stringify(tree));
+    const raw = localStorage.getItem(KNOWN_DATES_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (!list.includes(date)) {
+      list.push(date);
+      localStorage.setItem(KNOWN_DATES_KEY, JSON.stringify(list));
+    }
   } catch {
-    // quota or serialization issues — silent
+    // ignore
   }
 }
 
-export function loadMessages(): ChatMessage[] {
+export function loadLocalTree(date: string): WhyTree {
+  if (typeof window === "undefined") return newTree(`${date} 트리`);
+  try {
+    const raw = localStorage.getItem(TREE_KEY(date));
+    if (!raw) return newTree(`${date} 트리`);
+    const parsed = JSON.parse(raw) as WhyTree;
+    if (parsed.schemaVersion !== 1) return newTree(`${date} 트리`);
+    return parsed;
+  } catch {
+    return newTree(`${date} 트리`);
+  }
+}
+
+export function saveLocalTree(date: string, tree: WhyTree): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(TREE_KEY(date), JSON.stringify(tree));
+    rememberDate(date);
+  } catch {
+    // ignore
+  }
+}
+
+export function loadLocalMessages(date: string): ChatMessage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(MESSAGES_KEY);
+    const raw = localStorage.getItem(MESSAGES_KEY(date));
     if (!raw) return [];
     return JSON.parse(raw) as ChatMessage[];
   } catch {
@@ -39,17 +55,29 @@ export function loadMessages(): ChatMessage[] {
   }
 }
 
-export function saveMessages(messages: ChatMessage[]): void {
+export function saveLocalMessages(date: string, messages: ChatMessage[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+    localStorage.setItem(MESSAGES_KEY(date), JSON.stringify(messages));
+    rememberDate(date);
   } catch {
     // ignore
   }
 }
 
-export function clearAll(): void {
+export function clearLocal(date: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(TREE_KEY);
-  localStorage.removeItem(MESSAGES_KEY);
+  localStorage.removeItem(TREE_KEY(date));
+  localStorage.removeItem(MESSAGES_KEY(date));
+}
+
+export function listLocalDates(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(KNOWN_DATES_KEY);
+    if (!raw) return [];
+    return (JSON.parse(raw) as string[]).sort().reverse();
+  } catch {
+    return [];
+  }
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { getUser, onAuthChange, signOut } from "@/lib/auth";
-import { loadSummaryDB, type WhyTreeSummary } from "@/lib/whytree/db";
+import { loadOverallSummary, type OverallSummary } from "@/lib/whytree/db";
 
 type ActivityCard = {
   href: string;
@@ -90,7 +90,7 @@ export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
-  const [whytreeSummary, setWhytreeSummary] = useState<WhyTreeSummary | null>(
+  const [whytreeSummary, setWhytreeSummary] = useState<OverallSummary | null>(
     null,
   );
 
@@ -105,7 +105,7 @@ export default function AccountPage() {
         router.replace("/login");
         return;
       }
-      const summary = await loadSummaryDB(u.id);
+      const summary = await loadOverallSummary(u.id);
       if (mounted) setWhytreeSummary(summary);
     });
 
@@ -115,7 +115,9 @@ export default function AccountPage() {
       setUser(next);
       if (!next) router.replace("/login");
       else {
-        loadSummaryDB(next.id).then((s) => mounted && setWhytreeSummary(s));
+        loadOverallSummary(next.id).then(
+          (s) => mounted && setWhytreeSummary(s),
+        );
       }
     });
 
@@ -373,10 +375,10 @@ export default function AccountPage() {
                     {whytreeSummary === null
                       ? "불러오는 중…"
                       : whytreeSummary.hasData
-                        ? `대화 ${whytreeSummary.messageCount}개 · 노드 ${whytreeSummary.nodeCount}개${
-                            whytreeSummary.lastMessageAt
+                        ? `${whytreeSummary.totalSessions}일 동안 대화 ${whytreeSummary.totalMessages}개 · 노드 ${whytreeSummary.totalNodes}개${
+                            whytreeSummary.lastUpdatedAt
                               ? ` · 마지막 ${formatRelative(
-                                  whytreeSummary.lastMessageAt,
+                                  whytreeSummary.lastUpdatedAt,
                                 )}`
                               : ""
                           }`
@@ -390,35 +392,35 @@ export default function AccountPage() {
                   className="grid gap-2 text-[12px] pt-3"
                   style={{ borderTop: "1px solid var(--line)" }}
                 >
-                  {whytreeSummary.purpose && (
+                  {whytreeSummary.latestPurpose && (
                     <div className="flex gap-3">
                       <dt
                         className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
                         style={{ color: "var(--ink-3)" }}
                       >
-                        목적
+                        최근 목적
                       </dt>
                       <dd
                         className="flex-1 font-serif"
                         style={{ color: "var(--ink)" }}
                       >
-                        {whytreeSummary.purpose}
+                        {whytreeSummary.latestPurpose}
                       </dd>
                     </div>
                   )}
-                  {whytreeSummary.experimentLabel && (
+                  {whytreeSummary.latestExperiment && (
                     <div className="flex gap-3">
                       <dt
                         className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
                         style={{ color: "var(--green)" }}
                       >
-                        실험
+                        최근 실험
                       </dt>
                       <dd
                         className="flex-1"
                         style={{ color: "var(--ink-2)" }}
                       >
-                        {whytreeSummary.experimentLabel}
+                        {whytreeSummary.latestExperiment}
                       </dd>
                     </div>
                   )}

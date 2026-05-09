@@ -4,34 +4,40 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import WhyTreeView from "@/components/whytree/tree-view";
 import { getUser, onAuthChange } from "@/lib/auth";
-import { loadMessagesDB, loadTreeDB } from "@/lib/whytree/db";
-import { newTree } from "@/lib/whytree/tree-ops";
-import type { ChatMessage, WhyTree } from "@/lib/whytree/types";
+import { listDailySummaries, type DailySummary } from "@/lib/whytree/db";
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ko-KR", {
+function formatDateLabel(date: string): string {
+  const [y, m, d] = date.split("-").map((s) => parseInt(s, 10));
+  if (!y || !m || !d) return date;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    weekday: "short",
   });
 }
 
-function sameDayKey(iso: string): string {
-  return iso.slice(0, 10); // YYYY-MM-DD
+function relativeFromUpdated(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}일 전`;
+  return new Date(iso).toLocaleDateString("ko-KR");
 }
 
-export default function WhyTreeHistoryPage() {
+export default function WhyTreeHistoryListPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tree, setTree] = useState<WhyTree>(() => newTree());
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [summaries, setSummaries] = useState<DailySummary[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -44,10 +50,9 @@ export default function WhyTreeHistoryPage() {
         router.replace("/login");
         return;
       }
-      const [t, m] = await Promise.all([loadTreeDB(u.id), loadMessagesDB(u.id)]);
+      const list = await listDailySummaries(u.id);
       if (!mounted) return;
-      setTree(t);
-      setMessages(m);
+      setSummaries(list);
       setLoading(false);
     };
     init();
@@ -86,18 +91,9 @@ export default function WhyTreeHistoryPage() {
     );
   }
 
-  // 메시지를 날짜별로 그룹화
-  const groupedByDay = new Map<string, ChatMessage[]>();
-  for (const m of messages) {
-    const key = sameDayKey(m.ts);
-    if (!groupedByDay.has(key)) groupedByDay.set(key, []);
-    groupedByDay.get(key)!.push(m);
-  }
-  const dayKeys = [...groupedByDay.keys()];
-
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <section className="max-w-[1100px] mx-auto px-6 pt-12 pb-16">
+      <section className="max-w-[860px] mx-auto px-6 pt-12 pb-16">
         <div className="mb-3">
           <Link
             href="/account"
@@ -113,132 +109,133 @@ export default function WhyTreeHistoryPage() {
             className="text-[12px] font-medium tracking-[0.08em] uppercase mb-2"
             style={{ color: "var(--ink-3)" }}
           >
-            Why Tree · 대화 기록
+            Why Tree · 일자별 기록
           </p>
           <h1
             className="font-serif text-4xl tracking-[-0.02em] mb-3"
             style={{ color: "var(--ink)" }}
           >
-            지나간 대화들
+            지나간 트리들
           </h1>
           <p
-            className="text-[14px] leading-relaxed max-w-[640px]"
+            className="text-[14px] leading-relaxed max-w-[600px]"
             style={{ color: "var(--ink-3)" }}
           >
-            {messages.length === 0
-              ? "아직 기록이 없어요. 대화를 시작하면 여기에 쌓입니다."
-              : `대화 ${messages.length}개 · 노드 ${
-                  Object.keys(tree.nodes).length
-                }개. 발견한 것들이 트리로 자라고 있어요.`}
+            매일의 트리는 그날의 발견을 담고 있어요. 카드를 클릭하면 그날의
+            대화와 트리를 다시 볼 수 있습니다.
           </p>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4">
             <Link
               href="/whytree"
-              className="px-4 py-2 rounded-full text-[13px] font-semibold text-white transition-all hover:opacity-90"
+              className="px-4 py-2 rounded-full text-[13px] font-semibold text-white transition-all hover:opacity-90 inline-block"
               style={{ background: "var(--accent)" }}
             >
-              대화 이어가기
+              오늘의 트리로 가기 →
             </Link>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(320px,420px)]">
-          {/* 좌: 대화 로그 */}
+        {summaries.length === 0 ? (
           <div
-            className="rounded-2xl p-6"
+            className="rounded-xl p-8 text-center"
             style={{
               background: "var(--bg-2)",
-              border: "1px solid var(--line)",
-              boxShadow: "var(--shadow)",
+              border: "1px dashed var(--line-2)",
+              color: "var(--ink-3)",
             }}
           >
-            <p
-              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-5"
-              style={{ color: "var(--ink-3)" }}
-            >
-              대화 타임라인
+            <p className="text-[13px] mb-3">
+              아직 기록된 트리가 없어요.
             </p>
-
-            {messages.length === 0 ? (
-              <div
-                className="rounded-xl p-5 text-center"
+            <Link
+              href="/whytree"
+              className="text-[13px] font-semibold underline"
+              style={{ color: "var(--ink-2)" }}
+            >
+              첫 트리 시작하기
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {summaries.map((s) => (
+              <Link
+                key={s.id}
+                href={`/account/whytree/${s.date}`}
+                className="group block rounded-2xl p-5 transition-all hover:shadow-lg"
                 style={{
-                  background: "var(--bg)",
-                  border: "1px dashed var(--line-2)",
-                  color: "var(--ink-3)",
+                  background: "var(--bg-2)",
+                  border: "1px solid var(--line)",
+                  boxShadow: "var(--shadow)",
                 }}
               >
-                <p className="text-[13px]">아직 저장된 대화가 없어요.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {dayKeys.map((day) => (
-                  <div key={day}>
-                    <div
-                      className="flex items-center gap-3 mb-3"
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="font-serif text-[18px] tracking-[-0.01em]"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {formatDateLabel(s.date)}
+                    </p>
+                    <p
+                      className="text-[11px] mt-0.5"
                       style={{ color: "var(--ink-3)" }}
                     >
-                      <span
-                        className="text-[10px] uppercase tracking-[0.08em] px-2 py-0.5 rounded-full"
-                        style={{ background: "var(--accent-2)" }}
-                      >
-                        {day}
-                      </span>
-                      <div
-                        className="flex-1 h-px"
-                        style={{ background: "var(--line)" }}
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      {groupedByDay.get(day)!.map((m, i) => (
-                        <HistoryBubble key={`${day}-${i}`} message={m} />
-                      ))}
-                    </div>
+                      마지막 갱신 {relativeFromUpdated(s.updatedAt)} · 노드{" "}
+                      {s.nodeCount}개 · 대화 {s.messageCount}개
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <span
+                    className="text-[12px] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    →
+                  </span>
+                </div>
 
-          {/* 우: 현재 트리 */}
-          <div className="space-y-3">
-            <WhyTreeView tree={tree} />
-            <p
-              className="text-[11px] leading-relaxed"
-              style={{ color: "var(--ink-3)" }}
-            >
-              현재 트리의 모습. 새 대화에서 어떤 가지가 자라거나 어떤 노드가
-              실험으로 바뀌는지 여기서 확인하세요.
-            </p>
+                {(s.purpose || s.experimentLabel) && (
+                  <dl
+                    className="grid gap-1.5 mt-3 pt-3 text-[12px]"
+                    style={{ borderTop: "1px solid var(--line)" }}
+                  >
+                    {s.purpose && (
+                      <div className="flex gap-3">
+                        <dt
+                          className="w-[48px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          목적
+                        </dt>
+                        <dd
+                          className="flex-1 font-serif"
+                          style={{ color: "var(--ink)" }}
+                        >
+                          {s.purpose}
+                        </dd>
+                      </div>
+                    )}
+                    {s.experimentLabel && (
+                      <div className="flex gap-3">
+                        <dt
+                          className="w-[48px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                          style={{ color: "var(--green)" }}
+                        >
+                          실험
+                        </dt>
+                        <dd
+                          className="flex-1"
+                          style={{ color: "var(--ink-2)" }}
+                        >
+                          {s.experimentLabel}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+              </Link>
+            ))}
           </div>
-        </div>
+        )}
       </section>
-    </div>
-  );
-}
-
-function HistoryBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user";
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div className="max-w-[85%]">
-        <p
-          className="text-[10px] mb-1 px-2"
-          style={{ color: "var(--ink-3)" }}
-        >
-          {isUser ? "나" : "상담자"} · {formatDateTime(message.ts)}
-        </p>
-        <div
-          className="rounded-2xl px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap"
-          style={{
-            background: isUser ? "var(--accent)" : "var(--bg-2)",
-            color: isUser ? "white" : "var(--ink)",
-            border: isUser ? "none" : "1px solid var(--line)",
-          }}
-        >
-          {message.content}
-        </div>
-      </div>
     </div>
   );
 }
