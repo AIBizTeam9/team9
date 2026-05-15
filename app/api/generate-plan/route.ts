@@ -16,6 +16,7 @@ Hard rules:
 - The plan must fit within the user's stated weekly hours budget. If they said "Less than 2 hours/week," do not propose a plan that requires 5 hours/week.
 - For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
 - Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
+- If the user selected "Prefer not to say" for income, do not reference their income level anywhere in the plan. Do not infer or assume any income tier. If financial tradeoffs are relevant, ground them in the user's savings runway and stated boldness only — never income.
 
 Writing rules for specific fields:
 - rationale: Write 2-3 sentences as if summarizing what Future A and Future B argued about. Reference both futures by their names. It should feel like it emerged from a debate, not a generic recommendation.
