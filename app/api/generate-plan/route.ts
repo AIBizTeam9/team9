@@ -110,8 +110,11 @@ export async function POST(req: NextRequest) {
 
       try {
         const msgStream = client.messages.stream({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 8192,
+          // Vercel Hobby 60초 함수 한도 안에 끝내려고 Haiku 4.5로 전환.
+          // Sonnet 4.6은 한국어 풀 플랜에서 60s 초과(13kB 받다가 타임아웃 확인됨).
+          // 향후 Vercel Pro 업그레이드 시 Sonnet 4.6 복귀 가능.
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 6000,
           system: SYSTEM_PROMPT,
           messages: [
             {
