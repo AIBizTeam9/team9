@@ -32,8 +32,6 @@ const NAV_ITEMS = [
   { href: "/whytree", label: "Why 트리" },
   { href: "/market", label: "시장 인사이트" },
   { href: "/resources", label: "리소스" },
-  { href: "/lab", label: "실험실" },
-  { href: "/setup-guide", label: "개발가이드" },
 ];
 
 export default function RootLayout({

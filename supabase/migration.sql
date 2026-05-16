@@ -79,3 +79,20 @@ create policy "whytree_trees_owner_all" on public.whytree_trees
 
 create policy "whytree_messages_owner_all" on public.whytree_messages
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 6. 90일 플랜 결과 저장 (사용자별 누적)
+create table if not exists public.nextstep_plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(),
+  answers jsonb not null,
+  personas jsonb not null,
+  plan jsonb not null
+);
+create index if not exists idx_nextstep_plans_user
+  on public.nextstep_plans (user_id, created_at desc);
+
+alter table public.nextstep_plans enable row level security;
+
+create policy "nextstep_plans_owner_all" on public.nextstep_plans
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

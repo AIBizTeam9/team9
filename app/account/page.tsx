@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { getUser, onAuthChange, signOut } from "@/lib/auth";
 import { loadOverallSummary, type OverallSummary } from "@/lib/whytree/db";
+import { loadPlansOverview, type PlansOverview } from "@/lib/nextstep/db";
 
 type ActivityCard = {
   href: string;
@@ -93,6 +94,9 @@ export default function AccountPage() {
   const [whytreeSummary, setWhytreeSummary] = useState<OverallSummary | null>(
     null,
   );
+  const [plansOverview, setPlansOverview] = useState<PlansOverview | null>(
+    null,
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -105,8 +109,13 @@ export default function AccountPage() {
         router.replace("/login");
         return;
       }
-      const summary = await loadOverallSummary(u.id);
-      if (mounted) setWhytreeSummary(summary);
+      const [summary, overview] = await Promise.all([
+        loadOverallSummary(u.id),
+        loadPlansOverview(u.id),
+      ]);
+      if (!mounted) return;
+      setWhytreeSummary(summary);
+      setPlansOverview(overview);
     });
 
     const { data } = onAuthChange((u) => {
@@ -115,9 +124,14 @@ export default function AccountPage() {
       setUser(next);
       if (!next) router.replace("/login");
       else {
-        loadOverallSummary(next.id).then(
-          (s) => mounted && setWhytreeSummary(s),
-        );
+        Promise.all([
+          loadOverallSummary(next.id),
+          loadPlansOverview(next.id),
+        ]).then(([s, o]) => {
+          if (!mounted) return;
+          setWhytreeSummary(s);
+          setPlansOverview(o);
+        });
       }
     });
 
@@ -335,6 +349,103 @@ export default function AccountPage() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          {/* 90일 플랜 — 저장된 플랜 목록 */}
+          <div className="mt-8">
+            <p
+              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Next Step · 저장된 90일 플랜
+            </p>
+            <Link
+              href="/account/next-step"
+              className="group block rounded-2xl p-5 transition-all hover:shadow-lg"
+              style={{
+                background: "var(--bg-2)",
+                border: "1px solid var(--line)",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <span
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: "var(--warm-soft)" }}
+                >
+                  🧭
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3
+                    className="font-serif text-[16px] tracking-[-0.01em] mb-0.5"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    지난 플랜들
+                  </h3>
+                  <p
+                    className="text-[12px] leading-relaxed"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    {plansOverview === null
+                      ? "불러오는 중…"
+                      : plansOverview.total > 0
+                        ? `플랜 ${plansOverview.total}개${
+                            plansOverview.latest
+                              ? ` · 최근 ${formatRelative(
+                                  plansOverview.latest.created_at,
+                                )}`
+                              : ""
+                          }`
+                        : "아직 저장된 플랜이 없어요. 퀴즈를 마치면 자동으로 저장됩니다."}
+                  </p>
+                </div>
+              </div>
+
+              {plansOverview?.latest && (
+                <dl
+                  className="grid gap-2 text-[12px] pt-3"
+                  style={{ borderTop: "1px solid var(--line)" }}
+                >
+                  <div className="flex gap-3">
+                    <dt
+                      className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      최근 헤드라인
+                    </dt>
+                    <dd
+                      className="flex-1 font-serif line-clamp-2"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {plansOverview.latest.headline}
+                    </dd>
+                  </div>
+                  {plansOverview.latest.firstStep && (
+                    <div className="flex gap-3">
+                      <dt
+                        className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
+                        style={{ color: "var(--warm)" }}
+                      >
+                        첫 행동
+                      </dt>
+                      <dd
+                        className="flex-1 line-clamp-2"
+                        style={{ color: "var(--ink-2)" }}
+                      >
+                        {plansOverview.latest.firstStep}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+
+              <div
+                className="flex items-center justify-end mt-3 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: "var(--warm)" }}
+              >
+                지난 플랜 보기 →
+              </div>
+            </Link>
           </div>
 
           {/* Why Tree 대화 기록 — 로그인 사용자에게만 의미가 있는 영역 */}
