@@ -99,3 +99,8 @@ alter table public.nextstep_plans enable row level security;
 drop policy if exists "nextstep_plans_owner_all" on public.nextstep_plans;
 create policy "nextstep_plans_owner_all" on public.nextstep_plans
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 7. PostgREST 스키마 캐시 강제 새로고침
+-- 새 테이블/컬럼/정책이 즉시 anon 키로 접근 가능해지도록.
+-- 이게 없으면 마이그레이션 직후 'Could not find the table in the schema cache' 에러가 날 수 있음.
+notify pgrst, 'reload schema';
