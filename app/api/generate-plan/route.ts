@@ -43,8 +43,13 @@ Output exactly the following JSON schema. No prose before or after, no markdown 
 
 Each month should have 3-5 actions. Total resources: 3-5. Weeks across the plan: 1 through 12.`;
 
+const SSE_ENCODER = new TextEncoder();
 function sseEncode(obj: unknown): Uint8Array {
-  return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
+  return SSE_ENCODER.encode(`data: ${JSON.stringify(obj)}\n\n`);
+}
+function ssePing(): Uint8Array {
+  // SSE 주석 — 클라이언트는 무시하지만 프록시가 stream을 살아있다고 판단해 버퍼링 안 함
+  return SSE_ENCODER.encode(`: ping ${Date.now()}\n\n`);
 }
 
 export async function POST(req: NextRequest) {
@@ -83,6 +88,26 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const startedAt = Date.now();
+      let deltaCount = 0;
+      let closed = false;
+
+      // 즉시 헤더 flush를 유도하기 위해 첫 ping을 바로 보냄.
+      // Vercel/CDN 프록시가 'no bytes for N seconds'로 끊지 않도록 5초마다 ping 유지.
+      try {
+        controller.enqueue(ssePing());
+      } catch {
+        /* ignore */
+      }
+      const heartbeat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(ssePing());
+        } catch {
+          /* controller가 이미 닫혔으면 무시 */
+        }
+      }, 5000);
+
       try {
         const msgStream = client.messages.stream({
           model: 'claude-sonnet-4-6',
@@ -101,16 +126,36 @@ export async function POST(req: NextRequest) {
             event.type === 'content_block_delta' &&
             event.delta.type === 'text_delta'
           ) {
+            deltaCount += 1;
             controller.enqueue(sseEncode({ type: 'delta', text: event.delta.text }));
           }
         }
+        const elapsed = Date.now() - startedAt;
+        console.log(
+          `[generate-plan] done: ${deltaCount} deltas in ${elapsed}ms`,
+        );
         controller.enqueue(sseEncode({ type: 'done' }));
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'stream error';
-        console.error('[generate-plan] stream error:', msg);
-        controller.enqueue(sseEncode({ type: 'error', message: msg }));
+        console.error(
+          '[generate-plan] stream error after',
+          deltaCount,
+          'deltas:',
+          msg,
+        );
+        try {
+          controller.enqueue(sseEncode({ type: 'error', message: msg }));
+        } catch {
+          /* ignore — 클라이언트 이미 disconnect */
+        }
       } finally {
-        controller.close();
+        closed = true;
+        clearInterval(heartbeat);
+        try {
+          controller.close();
+        } catch {
+          /* ignore */
+        }
       }
     },
   });

@@ -18,6 +18,15 @@ const PLAN_MESSAGES = [
 
 type DebateTurn = { speaker: string; content: string };
 
+function DebugRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span style={{ color: 'var(--ink-3)' }}>{label}</span>
+      <span style={{ color: 'var(--ink-2)' }}>{value}</span>
+    </div>
+  );
+}
+
 const PERSONA_ACCENTS = ['var(--warm)', 'var(--blue)'] as const;
 const PERSONA_BGS = ['var(--warm-soft)', 'var(--blue-soft)'] as const;
 
@@ -28,6 +37,14 @@ export default function LoadingPage() {
   const [msgIndex, setMsgIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorDebug, setErrorDebug] = useState<{
+    httpStatus: number;
+    bytesReceived: number;
+    eventsParsed: number;
+    deltaCount: number;
+    timestamp: string;
+  } | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
   const [selectedPersonasState, setSelectedPersonasState] = useState<Persona[] | null>(null);
   const [debateTurns, setDebateTurns] = useState<DebateTurn[]>([]);
   const [visibleTurns, setVisibleTurns] = useState(0);
@@ -126,12 +143,19 @@ export default function LoadingPage() {
         });
 
       (async () => {
+        // 진단용: 어디까지 진행됐는지 추적
+        let httpStatus = 0;
+        let bytesReceived = 0;
+        let eventsParsed = 0;
+        let deltaCount = 0;
+
         try {
           const res = await fetch('/api/generate-plan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ answers, personas: selectedPersonas }),
           });
+          httpStatus = res.status;
           if (!res.ok || !res.body) {
             const body = (await res.json().catch(() => ({}))) as { error?: string };
             throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -144,42 +168,74 @@ export default function LoadingPage() {
           let serverError: string | null = null;
           let doneEvent = false;
 
+          const processLine = (rawLine: string) => {
+            // SSE 주석(`: ping`)이나 빈 줄은 무시
+            if (!rawLine.startsWith('data: ')) return;
+            const payload = rawLine.slice(6).trim();
+            if (!payload) return;
+            try {
+              const evt = JSON.parse(payload) as
+                | { type: 'delta'; text: string }
+                | { type: 'done' }
+                | { type: 'error'; message: string };
+              eventsParsed += 1;
+              if (evt.type === 'delta') {
+                fullText += evt.text;
+                deltaCount += 1;
+              } else if (evt.type === 'done') {
+                doneEvent = true;
+              } else if (evt.type === 'error') {
+                serverError = evt.message;
+              }
+            } catch {
+              // 부분 SSE 이벤트 — 다음 청크에서 완성되거나, 마지막에 flush로 한 번 더 시도
+            }
+          };
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            bytesReceived += value?.byteLength ?? 0;
             lineBuf += decoder.decode(value, { stream: true });
             const lines = lineBuf.split('\n');
             lineBuf = lines.pop() ?? '';
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              const payload = line.slice(6).trim();
-              if (!payload) continue;
-              try {
-                const evt = JSON.parse(payload) as
-                  | { type: 'delta'; text: string }
-                  | { type: 'done' }
-                  | { type: 'error'; message: string };
-                if (evt.type === 'delta') fullText += evt.text;
-                else if (evt.type === 'done') doneEvent = true;
-                else if (evt.type === 'error') serverError = evt.message;
-              } catch {
-                // 부분 SSE 이벤트 — 무시
-              }
-            }
+            for (const line of lines) processLine(line);
           }
 
-          if (serverError) throw new Error(serverError);
-          if (!doneEvent) throw new Error('스트림이 비정상 종료되었어요. 다시 시도해 주세요.');
+          // ★ 핵심 픽스: 스트림 끝난 뒤 디코더 flush + 남은 lineBuf 한 번 더 파싱.
+          //   이전엔 마지막 'data: {...}'가 \n 없이 끝나면 done 이벤트를 놓쳤음.
+          lineBuf += decoder.decode();
+          if (lineBuf.trim()) processLine(lineBuf);
 
-          // 마크다운 펜스 제거 후 JSON 파싱
+          if (serverError) throw new Error(serverError);
+          if (!doneEvent) {
+            // 진단 정보 같이 던짐
+            throw new Error(
+              `스트림이 done 이벤트 없이 종료. (수신 ${bytesReceived} bytes, 이벤트 ${eventsParsed}, 텍스트 ${fullText.length}자)`,
+            );
+          }
+
           const cleaned = fullText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
           const plan = JSON.parse(cleaned);
           sessionStorage.setItem('nextStep.plan', JSON.stringify(plan));
           router.replace('/next-step/plan');
         } catch (err) {
-          console.error('[loading] generate-plan failed:', err);
+          console.error('[loading] generate-plan failed:', {
+            err,
+            httpStatus,
+            bytesReceived,
+            eventsParsed,
+            deltaCount,
+          });
           const msg = err instanceof Error ? err.message : 'unknown';
           setErrorMsg(msg);
+          setErrorDebug({
+            httpStatus,
+            bytesReceived,
+            eventsParsed,
+            deltaCount,
+            timestamp: new Date().toISOString(),
+          });
         }
       })();
     }
@@ -188,10 +244,10 @@ export default function LoadingPage() {
   if (errorMsg) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center px-6"
+        className="min-h-screen flex flex-col items-center justify-center px-6 py-12"
         style={{ background: 'var(--bg)' }}
       >
-        <div className="max-w-[480px] text-center">
+        <div className="max-w-[560px] w-full text-center">
           <p
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3"
             style={{ color: 'var(--warm)' }}
@@ -210,18 +266,74 @@ export default function LoadingPage() {
           >
             네트워크나 모델 응답 문제일 수 있어요. 다시 시도하면 보통 됩니다.
           </p>
-          <p
-            className="text-[11px] mb-6 font-mono break-all"
-            style={{ color: 'var(--ink-3)' }}
+
+          {/* 사용자에게 보이는 에러 메시지 */}
+          <div
+            className="rounded-xl p-4 mb-4 text-left"
+            style={{
+              background: 'var(--warm-soft)',
+              border: '1px solid var(--warm)',
+            }}
           >
-            {errorMsg}
-          </p>
+            <p
+              className="text-[10px] font-medium tracking-[0.08em] uppercase mb-1"
+              style={{ color: 'var(--warm)' }}
+            >
+              에러 메시지
+            </p>
+            <p
+              className="text-[12px] font-mono break-all leading-relaxed"
+              style={{ color: 'var(--ink)' }}
+            >
+              {errorMsg}
+            </p>
+          </div>
+
+          {/* 진단 정보 토글 */}
+          {errorDebug && (
+            <div
+              className="rounded-xl p-4 mb-4 text-left"
+              style={{
+                background: 'var(--bg-2)',
+                border: '1px solid var(--line)',
+              }}
+            >
+              <button
+                onClick={() => setShowDebug((v) => !v)}
+                className="text-[11px] font-semibold flex items-center gap-1 mb-2"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                <span>{showDebug ? '▼' : '▶'}</span>
+                <span>진단 정보 (개발/디버깅용)</span>
+              </button>
+              {showDebug && (
+                <dl
+                  className="text-[11px] font-mono space-y-1"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  <DebugRow label="HTTP status" value={String(errorDebug.httpStatus)} />
+                  <DebugRow label="bytes received" value={String(errorDebug.bytesReceived)} />
+                  <DebugRow label="events parsed" value={String(errorDebug.eventsParsed)} />
+                  <DebugRow label="delta count" value={String(errorDebug.deltaCount)} />
+                  <DebugRow label="timestamp" value={errorDebug.timestamp} />
+                  <p
+                    className="mt-3 pt-3 leading-relaxed"
+                    style={{ borderTop: '1px solid var(--line)', color: 'var(--ink-3)' }}
+                  >
+                    더 자세한 로그는 Vercel → Deployments → 해당 배포 →
+                    Functions → /api/generate-plan 에서 <code>[generate-plan]</code>로 시작하는 라인을 확인하세요.
+                  </p>
+                </dl>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 justify-center">
             <button
               onClick={() => {
                 called.current = false;
                 setErrorMsg(null);
-                // 페르소나가 이미 골라져 있으니 generate-plan만 재시도
+                setErrorDebug(null);
                 router.replace('/next-step/loading');
               }}
               className="px-4 py-2 rounded-full text-[13px] font-semibold text-white"
