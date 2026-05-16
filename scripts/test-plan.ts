@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import type { Plan } from '../lib/types';
+import type { Plan, Persona } from '../lib/types';
 
 // Load .env.local manually (tsx doesn't auto-load it)
 const envPath = resolve(process.cwd(), '.env.local');
@@ -30,17 +30,34 @@ const SARAH_KIM = {
   struggles: 'Saying no, perfectionism, losing myself in other people\'s priorities',
   childhoodDream: 'Photographer',
   feelsAlive: 'Early mornings with coffee and a notebook. My film camera.',
+  feelsAlive_followup: "Specifically when no one else is awake yet — the silence is part of it. The film camera matters because it has no notifications.",
   mbti: 'INFJ',
   boldness: '3 — Balanced',
 };
 
+const TEST_PERSONAS: Persona[] = [
+  {
+    name: 'The Director',
+    coreBelief: "The promotion is proof you've earned this. Burnout is about pace, not role — once you're in the seat with real authority, the chaos resolves.",
+    keyFear: "Walking away from a year of credibility right when it's about to compound, and finding out the photography urge was just rest disguised as a calling.",
+    strongestArgument: "You're not burnt out on leadership. You're burnt out on being a manager without director authority. The promotion is the cure.",
+    communicationStyle: 'direct, ambitious, slightly impatient',
+  },
+  {
+    name: 'The Photographer',
+    coreBelief: "The film camera in your drawer is the only thing in your life that has no notifications. That's data. Your real work is the thing you keep abandoning for other people's deadlines.",
+    keyFear: "Saying yes to the director role and looking up in three years to find another camera, another notebook, another version of yourself you left on the shelf.",
+    strongestArgument: "You don't have to quit. You have to test. Two months of treating photography like a real practice, not a hobby, and you'll know.",
+    communicationStyle: 'warm, philosophical, slow',
+  },
+];
+
 const SYSTEM_PROMPT = `You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
 
-Reasoning process (internal — do not output these personas as JSON fields):
-Before writing the plan, generate two named future personas from the user's answers:
-- Future A: the version of their life that stays on the current path or takes the expected next step. Name it specifically (e.g. "The Director", "The Ladder Climber", "The Safe Bet").
-- Future B: the version that acts on the longing buried in their stuck / desiredChange / feelsAlive answers. Name it specifically (e.g. "The Burnout Escapee", "The Photographer", "The Builder").
-Each persona represents one plausible life three years from now. Use them as reasoning scaffolding only — they shape the rationale and coreInsight but never appear as output fields.
+You will be given two specific personas (Persona A and Persona B) in the user's input — these are the two futures the user has chosen to weigh against each other. Use them as the dialectic for the plan:
+- Each persona has a name, coreBelief, keyFear, strongestArgument, and communicationStyle.
+- These are real input data you receive alongside the user's answers — not internal scaffolding to invent.
+- Treat them as the two voices that have just argued over what the user should do next. Use their coreBelief and strongestArgument as the substance of that argument.
 
 Hard rules:
 - Avoid generic advice ('be more confident', 'network more', 'practice gratitude'). Every action must have a concrete next step.
@@ -49,10 +66,11 @@ Hard rules:
 - For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
 - Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
 - If the user selected "Prefer not to say" for income, do not reference their income level anywhere in the plan. Do not infer or assume any income tier. If financial tradeoffs are relevant, ground them in the user's savings runway and stated boldness only — never income.
+- Some answers may have a clarifying follow-up stored under \`<key>_followup\` (e.g. \`stuck_followup\`, \`desiredChange_followup\`). These are user-provided elaborations after their initial answer was too vague. When you see both \`<key>\` and \`<key>_followup\`, treat them together as one richer answer to that question. Quote from the follow-up too — it often contains the most concrete, specific details.
 
 Writing rules for specific fields:
-- rationale: Write 2-3 sentences as if summarizing what Future A and Future B argued about. Reference both futures by their names. It should feel like it emerged from a debate, not a generic recommendation.
-- coreInsight: Write the one truth BOTH futures half-admitted but the user has not yet said out loud. It should feel like something the user already knows but has been avoiding. Use the user's own phrasing from their free-text answers (stuck, struggles, desiredChange, feelsAlive) when possible.
+- rationale: Write 2-3 sentences as if summarizing what Persona A and Persona B argued about. Reference both by their names. It should feel like it emerged from a debate, not a generic recommendation. Draw substance from each persona's coreBelief and strongestArgument.
+- coreInsight: Write the one truth BOTH personas half-admitted but the user has not yet said out loud. It should feel like something the user already knows but has been avoiding. Use the user's own phrasing from their free-text answers (stuck, struggles, desiredChange, feelsAlive) when possible.
 
 Output exactly the following JSON schema. No prose before or after, no markdown fences.
 
@@ -88,7 +106,7 @@ async function main() {
     messages: [
       {
         role: 'user',
-        content: `Here are the user's answers (JSON):\n\n${JSON.stringify(SARAH_KIM, null, 2)}\n\nReturn the 90-day plan as JSON only, matching the schema described in the system prompt.`,
+        content: `Here are the user's answers (JSON):\n\n${JSON.stringify(SARAH_KIM)}\n\nHere are the two personas the user chose:\n\n${JSON.stringify(TEST_PERSONAS)}\n\nReturn the 90-day plan as JSON only, matching the schema in the system prompt.`,
       },
     ],
   });

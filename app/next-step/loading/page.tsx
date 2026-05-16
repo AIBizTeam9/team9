@@ -3,66 +3,106 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const MESSAGES = [
-  'Reading your answers…',
-  'Identifying the patterns…',
-  'Building your 90-day arc…',
-  'Writing week-by-week actions…',
-  'Almost there…',
+const PERSONA_MESSAGES = [
+  '당신의 이야기를 듣는 중...',
+  '두 미래 페르소나 만드는 중...',
+  'Almost there...',
+];
+
+const PLAN_MESSAGES = [
+  '두 미래가 토론하는 중...',
+  '90일 플랜 만드는 중...',
+  'Almost there...',
 ];
 
 export default function LoadingPage() {
   const router = useRouter();
   const called = useRef(false);
+  const [messages, setMessages] = useState(PERSONA_MESSAGES);
   const [msgIndex, setMsgIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
-  // Cycle through messages: fade out → swap text → fade in
+  // Cycle through messages: fade out → swap text → fade in.
+  // Restarts when messages array switches (persona → plan phase).
   useEffect(() => {
+    setMsgIndex(0);
+    setVisible(true);
     const id = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setMsgIndex((i) => (i + 1) % MESSAGES.length);
+        setMsgIndex((i) => (i + 1) % messages.length);
         setVisible(true);
       }, 300);
     }, 2500);
     return () => clearInterval(id);
-  }, []);
+  }, [messages]);
 
   useEffect(() => {
     if (called.current) return;
     called.current = true;
 
-    const raw = sessionStorage.getItem('nextStep.answers');
-    if (!raw) {
+    const rawAnswers = sessionStorage.getItem('nextStep.answers');
+    if (!rawAnswers) {
       router.replace('/next-step/quiz');
       return;
     }
 
     let answers: unknown;
     try {
-      answers = JSON.parse(raw);
+      answers = JSON.parse(rawAnswers);
     } catch {
       router.replace('/next-step/quiz');
       return;
     }
 
-    fetch('/api/generate-plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(answers),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+    const rawSelectedPersonas = sessionStorage.getItem('nextStep.selectedPersonas');
+
+    if (!rawSelectedPersonas) {
+      // First pass: generate 4 personas from quiz answers
+      setMessages(PERSONA_MESSAGES);
+      fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
       })
-      .then((plan) => {
-        sessionStorage.setItem('nextStep.plan', JSON.stringify(plan));
-        router.replace('/next-step/plan');
-      })
-      .catch(() => {
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          sessionStorage.setItem('nextStep.personas', JSON.stringify(data.personas));
+          router.replace('/next-step/personas');
+        })
+        .catch(() => {
+          router.replace('/next-step/quiz?error=1');
+        });
+    } else {
+      // Second pass: generate plan from selected personas
+      let selectedPersonas: unknown;
+      try {
+        selectedPersonas = JSON.parse(rawSelectedPersonas);
+      } catch {
         router.replace('/next-step/quiz?error=1');
-      });
+        return;
+      }
+      setMessages(PLAN_MESSAGES);
+      fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, personas: selectedPersonas }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          sessionStorage.setItem('nextStep.plan', JSON.stringify(data));
+          router.replace('/next-step/plan');
+        })
+        .catch(() => {
+          router.replace('/next-step/quiz?error=1');
+        });
+    }
   }, [router]);
 
   return (
@@ -82,7 +122,7 @@ export default function LoadingPage() {
         }}
       />
 
-      {/* Cycling message — single element, JS-driven fade */}
+      {/* Cycling message — JS-driven fade */}
       <p
         style={{
           color: 'var(--ink-3)',
@@ -94,7 +134,7 @@ export default function LoadingPage() {
           textAlign: 'center',
         }}
       >
-        {MESSAGES[msgIndex]}
+        {messages[msgIndex]}
       </p>
     </div>
   );
