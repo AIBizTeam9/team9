@@ -43,6 +43,9 @@ export default function QuizPage() {
   function advance(latestAnswers?: Answers) {
     const toSave = latestAnswers ?? answers;
     if (index === total - 1) {
+      sessionStorage.removeItem('nextStep.personas');
+      sessionStorage.removeItem('nextStep.selectedPersonas');
+      sessionStorage.removeItem('nextStep.plan');
       sessionStorage.setItem('nextStep.answers', JSON.stringify(toSave));
       router.push('/next-step/loading');
     } else {

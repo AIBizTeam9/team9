@@ -27,3 +27,15 @@ export type Plan = {
   resources: PlanResource[];
   firstStep: string;
 };
+
+export type Persona = {
+  name: string;               // e.g. "The Director", "The Photographer"
+  coreBelief: string;         // 1-2 sentences: what they believe about the user's situation
+  keyFear: string;            // 1 sentence: what they're afraid of
+  strongestArgument: string;  // 1-2 sentences: most persuasive thing they'd say (used by plan generation)
+  communicationStyle: string; // 2-4 words: how they speak (used by plan generation)
+};
+
+export type PersonasResponse = {
+  personas: Persona[]; // exactly 4
+};
