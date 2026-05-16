@@ -1,99 +1,153 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { NextRequest, NextResponse } from 'next/server';
-import type { Answers, Persona } from '@/lib/types';
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest, NextResponse } from "next/server";
+import type { Answers, Persona, Plan, PlanMonth, PlanResource } from "@/lib/types";
 
-// SSE 스트리밍으로 응답 — Claude 출력이 시작되면 즉시 바이트가 흐르므로
-// Vercel 프록시의 idle timeout(~30s)에 걸리지 않음.
+// 5개 병렬 Claude 호출로 분할 — 한 번의 거대 호출이 60초를 넘기는 문제를 회피.
+// 각 호출은 output 1500~2000 토큰으로 작아 8~12초에 끝남.
+// 모두 병렬이므로 wall time = 가장 느린 호출 ≈ ~12초.
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
+const COMMON_RULES = `Hard rules:
+- Use the user's exact words back when relevant — quote their phrases (stuck, desiredChange, feelsAlive).
+- If user selected "Prefer not to say" for income, never reference income.
+- Match the language of the user's free-text answers (Korean/English).
+- Avoid generic advice. Every action must have a concrete next step.
+- Some answers may have a clarifying follow-up under \`<key>_followup\`. Treat both as one richer answer; quote from the follow-up too.
+- Output ONLY the JSON object specified. No prose, no markdown fences.`;
 
-You will be given two specific personas (Persona A and Persona B) in the user's input — these are the two futures the user has chosen to weigh against each other. Use them as the dialectic for the plan:
-- Each persona has a name, coreBelief, keyFear, strongestArgument, and communicationStyle.
-- These are real input data you receive alongside the user's answers — not internal scaffolding to invent.
-- Treat them as the two voices that have just argued over what the user should do next. Use their coreBelief and strongestArgument as the substance of that argument.
+const FRAMING_PROMPT = `You are a career and life coach. Given a user's quiz answers and two chosen future-self personas, produce a tight framing JSON.
 
-Hard rules:
-- Avoid generic advice ('be more confident', 'network more', 'practice gratitude'). Every action must have a concrete next step.
-- Use the user's own words back to them when relevant — quote their phrases.
-- The plan must fit within the user's stated weekly hours budget. If they said "Less than 2 hours/week," do not propose a plan that requires 5 hours/week.
-- For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
-- Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
-- If the user selected "Prefer not to say" for income, do not reference their income level anywhere in the plan. Do not infer or assume any income tier. If financial tradeoffs are relevant, ground them in the user's savings runway and stated boldness only — never income.
-- Some answers may have a clarifying follow-up stored under \`<key>_followup\` (e.g. \`stuck_followup\`, \`desiredChange_followup\`). These are user-provided elaborations after their initial answer was too vague. When you see both \`<key>\` and \`<key>_followup\`, treat them together as one richer answer to that question. Quote from the follow-up too — it often contains the most concrete, specific details.
+${COMMON_RULES}
 
-Writing rules for specific fields:
-- rationale: Write 2-3 sentences as if summarizing what Persona A and Persona B argued about. Reference both by their names. It should feel like it emerged from a debate, not a generic recommendation. Draw substance from each persona's coreBelief and strongestArgument.
-- coreInsight: Write the one truth BOTH personas half-admitted but the user has not yet said out loud. It should feel like something the user already knows but has been avoiding. Use the user's own phrasing from their free-text answers (stuck, struggles, desiredChange, feelsAlive) when possible.
+Writing rules:
+- rationale: 2-3 sentences as if summarizing what Persona A and Persona B argued. Reference both by name. Substance from their coreBelief and strongestArgument.
+- coreInsight: ONE truth both personas half-admitted but the user has not yet said out loud. Use the user's own phrasing.
 
-Output exactly the following JSON schema. No prose before or after, no markdown fences.
-
+Schema:
 {
-  "headline": "string — one-sentence summary",
-  "rationale": "string — 2-3 sentences explaining why this plan",
-  "coreInsight": "string — the truth they half-know, one sentence",
-  "months": [
-    { "month": 1, "theme": "string", "actions": [ { "week": 1, "title": "string", "why": "string", "effort": "small|medium|large" } ] },
-    { "month": 2, "theme": "string", "actions": [ ... ] },
-    { "month": 3, "theme": "string", "actions": [ ... ] }
-  ],
-  "resources": [ { "title": "string", "url": "string", "why": "string" } ],
-  "firstStep": "string — the one thing to do today"
-}
+  "headline": "string — one-sentence summary of the 90-day plan",
+  "rationale": "string",
+  "coreInsight": "string",
+  "firstStep": "string — the one specific thing to do today"
+}`;
 
-Each month should have 3-5 actions. Total resources: 3-5. Weeks across the plan: 1 through 12.`;
+const MONTH_PROMPT = `You are a career and life coach. Given a user's quiz answers, two personas, and a target month number, produce one month's plan.
+
+${COMMON_RULES}
+
+Writing rules:
+- theme: 4-8 words capturing this month's focus, distinct from other months.
+- 3-5 actions. Each must fit the user's stated weekly hours budget.
+- weeks: month 1 uses weeks 1-4, month 2 uses 5-8, month 3 uses 9-12.
+
+Schema:
+{
+  "month": <number>,
+  "theme": "string",
+  "actions": [
+    { "week": <number>, "title": "string", "why": "string (1-2 sentences)", "effort": "small" | "medium" | "large" }
+  ]
+}`;
+
+const RESOURCES_PROMPT = `You are a career and life coach. Given a user's quiz answers and two personas, produce 3-5 specific resources.
+
+${COMMON_RULES}
+
+Hard rule: Only cite well-known sites with real, working URLs (Harvard Business Review, Coursera, NYT, MIT OCW, official org pages). Never invent URLs.
+
+Schema:
+{
+  "resources": [
+    { "title": "string", "url": "string", "why": "string (1-2 sentences)" }
+  ]
+}`;
 
 const SSE_ENCODER = new TextEncoder();
 function sseEncode(obj: unknown): Uint8Array {
   return SSE_ENCODER.encode(`data: ${JSON.stringify(obj)}\n\n`);
 }
 function ssePing(): Uint8Array {
-  // SSE 주석 — 클라이언트는 무시하지만 프록시가 stream을 살아있다고 판단해 버퍼링 안 함
   return SSE_ENCODER.encode(`: ping ${Date.now()}\n\n`);
+}
+
+function stripFences(s: string): string {
+  return s.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+}
+
+async function callSection<T>(
+  client: Anthropic,
+  systemPrompt: string,
+  userPayload: unknown,
+  maxTokens: number,
+  label: string,
+): Promise<T> {
+  const t0 = Date.now();
+  const message = await client.messages.create({
+    // Sonnet 4.6 — 출력이 작으니 한 호출당 8~12초로 안정적.
+    model: "claude-sonnet-4-6",
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(userPayload) }],
+  });
+  const block = message.content[0];
+  if (block.type !== "text") {
+    throw new Error(`[${label}] non-text response`);
+  }
+  const parsed = JSON.parse(stripFences(block.text)) as T;
+  console.log(`[generate-plan] ${label} done in ${Date.now() - t0}ms`);
+  return parsed;
 }
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    return NextResponse.json({ error: "API key not configured" }, { status: 500 });
   }
 
   let answers: Answers;
   let personas: Persona[];
   try {
     const body = await req.json();
-    if (!body?.answers || typeof body.answers !== 'object') {
-      return NextResponse.json({ error: 'missing or invalid "answers" field' }, { status: 400 });
+    if (!body?.answers || typeof body.answers !== "object") {
+      return NextResponse.json(
+        { error: 'missing or invalid "answers" field' },
+        { status: 400 },
+      );
     }
     if (!Array.isArray(body.personas) || body.personas.length !== 2) {
-      return NextResponse.json({ error: '"personas" must be an array of exactly 2' }, { status: 400 });
+      return NextResponse.json(
+        { error: '"personas" must be an array of exactly 2' },
+        { status: 400 },
+      );
     }
     for (const p of body.personas) {
       if (
-        !p?.name?.trim() || !p?.coreBelief?.trim() || !p?.keyFear?.trim() ||
-        !p?.strongestArgument?.trim() || !p?.communicationStyle?.trim()
+        !p?.name?.trim() ||
+        !p?.coreBelief?.trim() ||
+        !p?.keyFear?.trim() ||
+        !p?.strongestArgument?.trim() ||
+        !p?.communicationStyle?.trim()
       ) {
-        return NextResponse.json({ error: 'each persona must have all 5 non-empty fields' }, { status: 400 });
+        return NextResponse.json(
+          { error: "each persona must have all 5 non-empty fields" },
+          { status: 400 },
+        );
       }
     }
     answers = body.answers as Answers;
     personas = body.personas as Persona[];
   } catch {
-    return NextResponse.json({ error: 'invalid request body' }, { status: 400 });
+    return NextResponse.json({ error: "invalid request body" }, { status: 400 });
   }
 
-  // maxRetries: 4 — 429/5xx 발생 시 SDK가 지수 백오프로 자동 재시도.
-  // 동시 사용자가 분당 TPM 한도를 잠시 초과해도 알아서 기다렸다 성공.
+  // 429/5xx는 SDK가 지수 백오프로 자동 재시도.
   const client = new Anthropic({ apiKey, maxRetries: 4 });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const startedAt = Date.now();
-      let deltaCount = 0;
       let closed = false;
 
-      // 즉시 헤더 flush를 유도하기 위해 첫 ping을 바로 보냄.
-      // Vercel/CDN 프록시가 'no bytes for N seconds'로 끊지 않도록 5초마다 ping 유지.
       try {
         controller.enqueue(ssePing());
       } catch {
@@ -104,53 +158,89 @@ export async function POST(req: NextRequest) {
         try {
           controller.enqueue(ssePing());
         } catch {
-          /* controller가 이미 닫혔으면 무시 */
+          /* ignore */
         }
       }, 5000);
 
+      const emit = (obj: unknown) => {
+        if (closed) return;
+        try {
+          controller.enqueue(sseEncode(obj));
+        } catch {
+          /* ignore — already closed */
+        }
+      };
+
       try {
-        const msgStream = client.messages.stream({
-          // Vercel Hobby 60초 함수 한도 안에 끝내려고 Haiku 4.5로 전환.
-          // Sonnet 4.6은 한국어 풀 플랜에서 60s 초과(13kB 받다가 타임아웃 확인됨).
-          // 향후 Vercel Pro 업그레이드 시 Sonnet 4.6 복귀 가능.
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 6000,
-          system: SYSTEM_PROMPT,
-          messages: [
-            {
-              role: 'user',
-              content: `Here are the user's answers (JSON):\n\n${JSON.stringify(answers)}\n\nHere are the two personas the user chose:\n\n${JSON.stringify(personas)}\n\nReturn the 90-day plan as JSON only, matching the schema in the system prompt.`,
-            },
-          ],
+        const baseInput = { answers, personas };
+
+        emit({ type: "progress", section: "framing", phase: "start" });
+        emit({ type: "progress", section: "month1", phase: "start" });
+        emit({ type: "progress", section: "month2", phase: "start" });
+        emit({ type: "progress", section: "month3", phase: "start" });
+        emit({ type: "progress", section: "resources", phase: "start" });
+
+        // 5개 호출을 동시에 시작. 각각 끝나는 대로 progress 이벤트 발사.
+        const framingP = callSection<{
+          headline: string;
+          rationale: string;
+          coreInsight: string;
+          firstStep: string;
+        }>(client, FRAMING_PROMPT, baseInput, 800, "framing").then((r) => {
+          emit({ type: "progress", section: "framing", phase: "done" });
+          return r;
         });
 
-        for await (const event of msgStream) {
-          if (
-            event.type === 'content_block_delta' &&
-            event.delta.type === 'text_delta'
-          ) {
-            deltaCount += 1;
-            controller.enqueue(sseEncode({ type: 'delta', text: event.delta.text }));
-          }
-        }
+        const monthP = (m: 1 | 2 | 3) =>
+          callSection<PlanMonth>(
+            client,
+            MONTH_PROMPT,
+            { ...baseInput, month: m },
+            1500,
+            `month${m}`,
+          ).then((r) => {
+            emit({ type: "progress", section: `month${m}`, phase: "done" });
+            return { ...r, month: m } as PlanMonth;
+          });
+
+        const resourcesP = callSection<{ resources: PlanResource[] }>(
+          client,
+          RESOURCES_PROMPT,
+          baseInput,
+          1200,
+          "resources",
+        ).then((r) => {
+          emit({ type: "progress", section: "resources", phase: "done" });
+          return r;
+        });
+
+        const [framing, m1, m2, m3, resourcesObj] = await Promise.all([
+          framingP,
+          monthP(1),
+          monthP(2),
+          monthP(3),
+          resourcesP,
+        ]);
+
+        const plan: Plan = {
+          headline: framing.headline,
+          rationale: framing.rationale,
+          coreInsight: framing.coreInsight,
+          firstStep: framing.firstStep,
+          months: [m1, m2, m3].sort(
+            (a, b) => a.month - b.month,
+          ) as Plan["months"],
+          resources: resourcesObj.resources ?? [],
+        };
+
         const elapsed = Date.now() - startedAt;
-        console.log(
-          `[generate-plan] done: ${deltaCount} deltas in ${elapsed}ms`,
-        );
-        controller.enqueue(sseEncode({ type: 'done' }));
+        console.log(`[generate-plan] all 5 sections done in ${elapsed}ms`);
+        emit({ type: "plan", plan });
+        emit({ type: "done" });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'stream error';
-        console.error(
-          '[generate-plan] stream error after',
-          deltaCount,
-          'deltas:',
-          msg,
-        );
-        try {
-          controller.enqueue(sseEncode({ type: 'error', message: msg }));
-        } catch {
-          /* ignore — 클라이언트 이미 disconnect */
-        }
+        const msg = err instanceof Error ? err.message : "stream error";
+        console.error("[generate-plan] failed:", msg);
+        emit({ type: "error", message: msg });
       } finally {
         closed = true;
         clearInterval(heartbeat);
@@ -165,10 +255,10 @@ export async function POST(req: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-store, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-store, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

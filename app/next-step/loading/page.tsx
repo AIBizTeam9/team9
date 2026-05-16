@@ -41,7 +41,7 @@ export default function LoadingPage() {
     httpStatus: number;
     bytesReceived: number;
     eventsParsed: number;
-    deltaCount: number;
+    sectionsDone: number;
     timestamp: string;
   } | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -143,11 +143,11 @@ export default function LoadingPage() {
         });
 
       (async () => {
-        // 진단용: 어디까지 진행됐는지 추적
         let httpStatus = 0;
         let bytesReceived = 0;
         let eventsParsed = 0;
-        let deltaCount = 0;
+        let sectionsDone = 0;
+        let planObj: unknown = null;
 
         try {
           const res = await fetch('/api/generate-plan', {
@@ -164,31 +164,31 @@ export default function LoadingPage() {
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let lineBuf = '';
-          let fullText = '';
           let serverError: string | null = null;
           let doneEvent = false;
 
           const processLine = (rawLine: string) => {
-            // SSE 주석(`: ping`)이나 빈 줄은 무시
             if (!rawLine.startsWith('data: ')) return;
             const payload = rawLine.slice(6).trim();
             if (!payload) return;
             try {
               const evt = JSON.parse(payload) as
-                | { type: 'delta'; text: string }
+                | { type: 'progress'; section: string; phase: 'start' | 'done' }
+                | { type: 'plan'; plan: unknown }
                 | { type: 'done' }
                 | { type: 'error'; message: string };
               eventsParsed += 1;
-              if (evt.type === 'delta') {
-                fullText += evt.text;
-                deltaCount += 1;
+              if (evt.type === 'progress' && evt.phase === 'done') {
+                sectionsDone += 1;
+              } else if (evt.type === 'plan') {
+                planObj = evt.plan;
               } else if (evt.type === 'done') {
                 doneEvent = true;
               } else if (evt.type === 'error') {
                 serverError = evt.message;
               }
             } catch {
-              // 부분 SSE 이벤트 — 다음 청크에서 완성되거나, 마지막에 flush로 한 번 더 시도
+              /* 부분 SSE — 다음 청크/flush에서 다시 시도 */
             }
           };
 
@@ -201,23 +201,20 @@ export default function LoadingPage() {
             lineBuf = lines.pop() ?? '';
             for (const line of lines) processLine(line);
           }
-
-          // ★ 핵심 픽스: 스트림 끝난 뒤 디코더 flush + 남은 lineBuf 한 번 더 파싱.
-          //   이전엔 마지막 'data: {...}'가 \n 없이 끝나면 done 이벤트를 놓쳤음.
           lineBuf += decoder.decode();
           if (lineBuf.trim()) processLine(lineBuf);
 
           if (serverError) throw new Error(serverError);
-          if (!doneEvent) {
-            // 진단 정보 같이 던짐
+          if (!planObj) {
             throw new Error(
-              `스트림이 done 이벤트 없이 종료. (수신 ${bytesReceived} bytes, 이벤트 ${eventsParsed}, 텍스트 ${fullText.length}자)`,
+              `플랜 데이터를 받지 못했어요. (수신 ${bytesReceived} bytes, 이벤트 ${eventsParsed}, 섹션 완료 ${sectionsDone}/5)`,
             );
           }
+          if (!doneEvent) {
+            console.warn('[loading] plan received but done event missing — proceeding anyway');
+          }
 
-          const cleaned = fullText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-          const plan = JSON.parse(cleaned);
-          sessionStorage.setItem('nextStep.plan', JSON.stringify(plan));
+          sessionStorage.setItem('nextStep.plan', JSON.stringify(planObj));
           router.replace('/next-step/plan');
         } catch (err) {
           console.error('[loading] generate-plan failed:', {
@@ -225,7 +222,7 @@ export default function LoadingPage() {
             httpStatus,
             bytesReceived,
             eventsParsed,
-            deltaCount,
+            sectionsDone,
           });
           const msg = err instanceof Error ? err.message : 'unknown';
           setErrorMsg(msg);
@@ -233,7 +230,7 @@ export default function LoadingPage() {
             httpStatus,
             bytesReceived,
             eventsParsed,
-            deltaCount,
+            sectionsDone,
             timestamp: new Date().toISOString(),
           });
         }
@@ -314,7 +311,7 @@ export default function LoadingPage() {
                   <DebugRow label="HTTP status" value={String(errorDebug.httpStatus)} />
                   <DebugRow label="bytes received" value={String(errorDebug.bytesReceived)} />
                   <DebugRow label="events parsed" value={String(errorDebug.eventsParsed)} />
-                  <DebugRow label="delta count" value={String(errorDebug.deltaCount)} />
+                  <DebugRow label="sections done" value={`${errorDebug.sectionsDone} / 5`} />
                   <DebugRow label="timestamp" value={errorDebug.timestamp} />
                   <p
                     className="mt-3 pt-3 leading-relaxed"
