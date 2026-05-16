@@ -30,6 +30,7 @@ const SARAH_KIM = {
   struggles: 'Saying no, perfectionism, losing myself in other people\'s priorities',
   childhoodDream: 'Photographer',
   feelsAlive: 'Early mornings with coffee and a notebook. My film camera.',
+  feelsAlive_followup: "Specifically when no one else is awake yet — the silence is part of it. The film camera matters because it has no notifications.",
   mbti: 'INFJ',
   boldness: '3 — Balanced',
 };
@@ -49,6 +50,7 @@ Hard rules:
 - For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
 - Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
 - If the user selected "Prefer not to say" for income, do not reference their income level anywhere in the plan. Do not infer or assume any income tier. If financial tradeoffs are relevant, ground them in the user's savings runway and stated boldness only — never income.
+- Some answers may have a clarifying follow-up stored under \`<key>_followup\` (e.g. \`stuck_followup\`, \`desiredChange_followup\`). These are user-provided elaborations after their initial answer was too vague. When you see both \`<key>\` and \`<key>_followup\`, treat them together as one richer answer to that question. Quote from the follow-up too — it often contains the most concrete, specific details.
 
 Writing rules for specific fields:
 - rationale: Write 2-3 sentences as if summarizing what Future A and Future B argued about. Reference both futures by their names. It should feel like it emerged from a debate, not a generic recommendation.
