@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --port 15500",
     "build": "next build",
+    "vercel-build": "node scripts/migrate.mjs && next build",
+    "migrate": "node scripts/migrate.mjs",
     "start": "next start --port 15500",
     "lint": "eslint",
     "db:push": "prisma db push",
