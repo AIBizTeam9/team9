@@ -49,9 +49,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const client = new Anthropic({
-      apiKey,
-    });
+    const client = new Anthropic({ apiKey, maxRetries: 4 });
 
     const message = await client.messages.create({
       model: "claude-opus-4-1-20250805",

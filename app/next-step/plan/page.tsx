@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { Plan, PlanMonth, PlanAction, PlanResource } from '@/lib/types';
+import type { Plan, PlanMonth, PlanAction, PlanResource, Answers, Persona } from '@/lib/types';
+import { getUser } from '@/lib/auth';
+import { savePlan } from '@/lib/nextstep/db';
 
 const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; label: string }> = {
   small:  { bg: 'var(--green-soft)',  color: 'var(--green)',  label: 'small' },
@@ -14,6 +16,10 @@ const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; la
 export default function PlanPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [loginPrompt, setLoginPrompt] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('nextStep.plan');
@@ -24,6 +30,76 @@ export default function PlanPage() {
       router.replace('/next-step');
     }
   }, [router]);
+
+  // 로그인 사용자면 결과를 DB에 자동 저장 (한 번만). 이전에 저장된 플랜이면 그 id로 표식.
+  useEffect(() => {
+    if (!plan) return;
+    let cancelled = false;
+    (async () => {
+      const user = await getUser();
+      if (cancelled) return;
+      if (!user) {
+        setLoginPrompt(true);
+        return;
+      }
+      const existing = sessionStorage.getItem('nextStep.plan.savedId');
+      if (existing) {
+        setSavedId(existing);
+        return;
+      }
+      const rawAnswers = sessionStorage.getItem('nextStep.answers');
+      const rawPersonas = sessionStorage.getItem('nextStep.selectedPersonas');
+      let answers: Answers = {};
+      let personas: Persona[] = [];
+      try {
+        if (rawAnswers) answers = JSON.parse(rawAnswers) as Answers;
+        if (rawPersonas) personas = JSON.parse(rawPersonas) as Persona[];
+      } catch {
+        // 일부 입력이 깨졌어도 plan 본문은 저장
+      }
+      const result = await savePlan(user.id, { answers, personas, plan });
+      if (cancelled) return;
+      if (result.ok) {
+        sessionStorage.setItem('nextStep.plan.savedId', result.id);
+        setSavedId(result.id);
+        setSaveError(null);
+      } else {
+        console.error('[plan] save failed:', result.error);
+        setSaveError(result.error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [plan]);
+
+  const handleRetrySave = async () => {
+    if (!plan || retrying) return;
+    setRetrying(true);
+    setSaveError(null);
+    try {
+      const user = await getUser();
+      if (!user) {
+        setLoginPrompt(true);
+        return;
+      }
+      const rawAnswers = sessionStorage.getItem('nextStep.answers');
+      const rawPersonas = sessionStorage.getItem('nextStep.selectedPersonas');
+      let answers: Answers = {};
+      let personas: Persona[] = [];
+      try {
+        if (rawAnswers) answers = JSON.parse(rawAnswers) as Answers;
+        if (rawPersonas) personas = JSON.parse(rawPersonas) as Persona[];
+      } catch {}
+      const result = await savePlan(user.id, { answers, personas, plan });
+      if (result.ok) {
+        sessionStorage.setItem('nextStep.plan.savedId', result.id);
+        setSavedId(result.id);
+      } else {
+        setSaveError(result.error);
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   if (!plan) {
     return (
@@ -137,6 +213,70 @@ export default function PlanPage() {
             {plan.firstStep}
           </p>
         </div>
+
+        {/* Save status */}
+        {savedId && (
+          <div className="mt-10 text-center">
+            <p className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+              이 플랜은 내 정보에 저장됐어요. 언제든{' '}
+              <Link
+                href="/account/next-step"
+                className="underline"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                지난 플랜
+              </Link>
+              에서 다시 볼 수 있어요.
+            </p>
+          </div>
+        )}
+        {saveError && !savedId && (
+          <div
+            className="mt-10 rounded-xl p-4"
+            style={{
+              background: 'var(--warm-soft)',
+              border: '1px solid var(--warm)',
+            }}
+          >
+            <p
+              className="text-[12px] font-semibold mb-1"
+              style={{ color: 'var(--warm)' }}
+            >
+              저장에 실패했어요
+            </p>
+            <p
+              className="text-[12px] mb-3"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              {saveError}
+            </p>
+            <button
+              onClick={handleRetrySave}
+              disabled={retrying}
+              className="text-[12px] font-semibold px-3 py-1.5 rounded-full text-white disabled:opacity-50"
+              style={{ background: 'var(--warm)' }}
+            >
+              {retrying ? '다시 저장 중…' : '다시 저장 시도'}
+            </button>
+          </div>
+        )}
+        {loginPrompt && !savedId && (
+          <div
+            className="mt-10 rounded-xl p-4 text-center"
+            style={{ background: 'var(--accent-2)', border: '1px solid var(--line)' }}
+          >
+            <p className="text-[13px] mb-2" style={{ color: 'var(--ink-2)' }}>
+              지금 본 플랜을 나중에 다시 보려면 — 구글 한 번 누르면 끝이에요.
+            </p>
+            <Link
+              href="/login"
+              className="inline-block text-[12px] font-semibold underline"
+              style={{ color: 'var(--ink)' }}
+            >
+              구글로 시작 →
+            </Link>
+          </div>
+        )}
 
         {/* Start over */}
         <div className="mt-10 text-center">
