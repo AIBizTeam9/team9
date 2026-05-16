@@ -1,0 +1,215 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import type { Persona } from '@/lib/types';
+
+export default function PersonasPage() {
+  const router = useRouter();
+  const [personas, setPersonas] = useState<Persona[] | null>(null);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+  const [shakingIndex, setShakingIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const rawPersonas = sessionStorage.getItem('nextStep.personas');
+      const rawAnswers = sessionStorage.getItem('nextStep.answers');
+
+      if (!rawPersonas || !rawAnswers) {
+        router.replace('/next-step/quiz');
+        return;
+      }
+
+      const parsed = JSON.parse(rawPersonas);
+      if (!Array.isArray(parsed) || parsed.length !== 4) {
+        router.replace('/next-step/quiz');
+        return;
+      }
+
+      setPersonas(parsed as Persona[]);
+    } catch {
+      router.replace('/next-step/quiz');
+    }
+  }, [router]);
+
+  function handleCardClick(i: number) {
+    if (selectedIndices.includes(i)) {
+      setSelectedIndices((prev) => prev.filter((x) => x !== i));
+    } else if (selectedIndices.length < 2) {
+      setSelectedIndices((prev) => [...prev, i]);
+    } else {
+      // 2 already selected — shake to signal rejection
+      setShakingIndex(i);
+      setTimeout(() => setShakingIndex(null), 400);
+    }
+  }
+
+  function handleBuild() {
+    if (selectedIndices.length !== 2 || !personas) return;
+    const chosen = selectedIndices.map((i) => personas[i]);
+    sessionStorage.setItem('nextStep.selectedPersonas', JSON.stringify(chosen));
+    router.push('/next-step/loading');
+  }
+
+  // Avoid flash of empty content while sessionStorage resolves
+  if (personas === null) return null;
+
+  const selectedCount = selectedIndices.length;
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shake {
+          0%   { transform: translateX(0); }
+          20%  { transform: translateX(-6px); }
+          40%  { transform: translateX(6px); }
+          60%  { transform: translateX(-4px); }
+          80%  { transform: translateX(4px); }
+          100% { transform: translateX(0); }
+        }
+        .page-enter { animation: fadeUp 300ms ease forwards; }
+        .persona-card {
+          transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
+        }
+        .persona-card:hover { transform: translateY(-2px); }
+        .persona-card.shaking { animation: shake 380ms ease; }
+      `}</style>
+
+      <main className="flex-1 flex flex-col items-center px-6 py-16 page-enter">
+
+        {/* Header */}
+        <div className="w-full max-w-[720px] text-center mb-12">
+          <h1
+            className="font-serif leading-[1.1] tracking-[-0.02em] mb-5"
+            style={{
+              color: 'var(--ink)',
+              fontSize: 'clamp(40px, 6vw, 66px)',
+            }}
+          >
+            Which two futures should argue for you?
+          </h1>
+          <p
+            className="leading-relaxed mx-auto"
+            style={{
+              color: 'var(--ink-2)',
+              fontSize: '16px',
+              maxWidth: '520px',
+            }}
+          >
+            Each of these is a version of who you could be in three years.
+            Pick two — they&apos;ll argue with each other to find your 90-day plan.
+          </p>
+        </div>
+
+        {/* 2×2 Card grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-[860px]">
+          {personas.map((persona, i) => {
+            const selected = selectedIndices.includes(i);
+            const shaking = shakingIndex === i;
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleCardClick(i)}
+                className={`persona-card text-left rounded-2xl relative outline-none focus-visible:ring-2${shaking ? ' shaking' : ''}`}
+                style={{
+                  padding: '32px',
+                  background: selected ? 'var(--warm-soft)' : 'var(--bg-2)',
+                  border: selected ? '2px solid var(--warm)' : '1px solid var(--line)',
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Coral checkmark dot — visible when selected */}
+                {selected && (
+                  <span
+                    className="absolute top-4 right-4 flex items-center justify-center w-5 h-5 rounded-full"
+                    style={{ background: 'var(--warm)' }}
+                    aria-hidden="true"
+                  >
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path
+                        d="M1 4l2.5 2.5L9 1"
+                        stroke="white"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                )}
+
+                {/* Name */}
+                <h2
+                  className="font-serif leading-tight mb-3"
+                  style={{
+                    color: 'var(--ink)',
+                    fontSize: 'clamp(24px, 3vw, 30px)',
+                  }}
+                >
+                  {persona.name}
+                </h2>
+
+                {/* Core belief */}
+                <p
+                  className="leading-relaxed mb-4"
+                  style={{ color: 'var(--ink-2)', fontSize: '15px' }}
+                >
+                  {persona.coreBelief}
+                </p>
+
+                {/* Key fear */}
+                <p
+                  className="italic leading-relaxed"
+                  style={{ color: 'var(--ink-3)', fontSize: '14px' }}
+                >
+                  <span className="not-italic font-medium" style={{ color: 'var(--ink-3)' }}>
+                    Afraid of:{' '}
+                  </span>
+                  {persona.keyFear}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Counter + CTA */}
+        <div className="flex flex-col items-center gap-4 mt-10">
+          <p className="text-[13px]" style={{ color: 'var(--ink-3)' }}>
+            {selectedCount} of 2 selected
+          </p>
+
+          <button
+            type="button"
+            onClick={handleBuild}
+            disabled={selectedCount !== 2}
+            className="px-8 py-4 rounded-full text-[15px] font-semibold text-white transition-opacity"
+            style={{
+              background: 'var(--warm)',
+              opacity: selectedCount === 2 ? 1 : 0.4,
+              cursor: selectedCount === 2 ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Build my plan with these two →
+          </button>
+        </div>
+      </main>
+
+      {/* Back link */}
+      <div className="flex justify-center pb-12">
+        <Link
+          href="/next-step/quiz"
+          className="text-[13px] hover:underline transition-all"
+          style={{ color: 'var(--ink-3)', textDecorationLine: 'none' }}
+        >
+          ← Back
+        </Link>
+      </div>
+    </div>
+  );
+}

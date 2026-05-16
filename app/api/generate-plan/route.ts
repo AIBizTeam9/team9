@@ -1,14 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
-import type { Answers, Plan } from '@/lib/types';
+import type { Answers, Plan, Persona } from '@/lib/types';
 
 const SYSTEM_PROMPT = `You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
 
-Reasoning process (internal — do not output these personas as JSON fields):
-Before writing the plan, generate two named future personas from the user's answers:
-- Future A: the version of their life that stays on the current path or takes the expected next step. Name it specifically (e.g. "The Director", "The Ladder Climber", "The Safe Bet").
-- Future B: the version that acts on the longing buried in their stuck / desiredChange / feelsAlive answers. Name it specifically (e.g. "The Burnout Escapee", "The Photographer", "The Builder").
-Each persona represents one plausible life three years from now. Use them as reasoning scaffolding only — they shape the rationale and coreInsight but never appear as output fields.
+You will be given two specific personas (Persona A and Persona B) in the user's input — these are the two futures the user has chosen to weigh against each other. Use them as the dialectic for the plan:
+- Each persona has a name, coreBelief, keyFear, strongestArgument, and communicationStyle.
+- These are real input data you receive alongside the user's answers — not internal scaffolding to invent.
+- Treat them as the two voices that have just argued over what the user should do next. Use their coreBelief and strongestArgument as the substance of that argument.
 
 Hard rules:
 - Avoid generic advice ('be more confident', 'network more', 'practice gratitude'). Every action must have a concrete next step.
@@ -16,10 +15,12 @@ Hard rules:
 - The plan must fit within the user's stated weekly hours budget. If they said "Less than 2 hours/week," do not propose a plan that requires 5 hours/week.
 - For resources, only cite well-known sites with real, working URLs (e.g. Harvard Business Review, Coursera, NYT, MIT OCW, official organization pages). Do NOT invent URLs.
 - Be honest about tradeoffs. If their desired change conflicts with their savings or hours budget, name it.
+- If the user selected "Prefer not to say" for income, do not reference their income level anywhere in the plan. Do not infer or assume any income tier. If financial tradeoffs are relevant, ground them in the user's savings runway and stated boldness only — never income.
+- Some answers may have a clarifying follow-up stored under \`<key>_followup\` (e.g. \`stuck_followup\`, \`desiredChange_followup\`). These are user-provided elaborations after their initial answer was too vague. When you see both \`<key>\` and \`<key>_followup\`, treat them together as one richer answer to that question. Quote from the follow-up too — it often contains the most concrete, specific details.
 
 Writing rules for specific fields:
-- rationale: Write 2-3 sentences as if summarizing what Future A and Future B argued about. Reference both futures by their names. It should feel like it emerged from a debate, not a generic recommendation.
-- coreInsight: Write the one truth BOTH futures half-admitted but the user has not yet said out loud. It should feel like something the user already knows but has been avoiding. Use the user's own phrasing from their free-text answers (stuck, struggles, desiredChange, feelsAlive) when possible.
+- rationale: Write 2-3 sentences as if summarizing what Persona A and Persona B argued about. Reference both by their names. It should feel like it emerged from a debate, not a generic recommendation. Draw substance from each persona's coreBelief and strongestArgument.
+- coreInsight: Write the one truth BOTH personas half-admitted but the user has not yet said out loud. It should feel like something the user already knows but has been avoiding. Use the user's own phrasing from their free-text answers (stuck, struggles, desiredChange, feelsAlive) when possible.
 
 Output exactly the following JSON schema. No prose before or after, no markdown fences.
 
@@ -45,8 +46,25 @@ export async function POST(req: NextRequest) {
   }
 
   let answers: Answers;
+  let personas: Persona[];
   try {
-    answers = await req.json();
+    const body = await req.json();
+    if (!body?.answers || typeof body.answers !== 'object') {
+      return NextResponse.json({ error: 'missing or invalid "answers" field' }, { status: 400 });
+    }
+    if (!Array.isArray(body.personas) || body.personas.length !== 2) {
+      return NextResponse.json({ error: '"personas" must be an array of exactly 2' }, { status: 400 });
+    }
+    for (const p of body.personas) {
+      if (
+        !p?.name?.trim() || !p?.coreBelief?.trim() || !p?.keyFear?.trim() ||
+        !p?.strongestArgument?.trim() || !p?.communicationStyle?.trim()
+      ) {
+        return NextResponse.json({ error: 'each persona must have all 5 non-empty fields' }, { status: 400 });
+      }
+    }
+    answers = body.answers as Answers;
+    personas = body.personas as Persona[];
   } catch {
     return NextResponse.json({ error: 'invalid request body' }, { status: 400 });
   }
@@ -62,7 +80,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Here are the user's answers (JSON):\n\n${JSON.stringify(answers, null, 2)}\n\nReturn the 90-day plan as JSON only, matching the schema described in the system prompt.`,
+          content: `Here are the user's answers (JSON):\n\n${JSON.stringify(answers)}\n\nHere are the two personas the user chose:\n\n${JSON.stringify(personas)}\n\nReturn the 90-day plan as JSON only, matching the schema in the system prompt.`,
         },
       ],
     });
