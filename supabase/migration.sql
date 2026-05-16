@@ -91,6 +91,9 @@ create table if not exists public.nextstep_plans (
   personas jsonb not null,
   plan jsonb not null
 );
+-- 진행 상황 (action별 완료/리뷰 노트). 기존 row에도 추가 가능.
+alter table public.nextstep_plans
+  add column if not exists progress jsonb not null default '{}'::jsonb;
 create index if not exists idx_nextstep_plans_user
   on public.nextstep_plans (user_id, created_at desc);
 

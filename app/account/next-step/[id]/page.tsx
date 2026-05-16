@@ -1,12 +1,20 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import PlanView from "@/components/nextstep/plan-view";
 import { getUser, onAuthChange } from "@/lib/auth";
-import { deletePlan, getPlan, type SavedPlan } from "@/lib/nextstep/db";
+import {
+  deletePlan,
+  getPlan,
+  progressStats,
+  updatePlanProgress,
+  type PlanProgress,
+  type PlanProgressEntry,
+  type SavedPlan,
+} from "@/lib/nextstep/db";
 
 function formatFull(iso: string): string {
   const d = new Date(iso);
@@ -31,7 +39,12 @@ export default function PlanDetailPage({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [plan, setPlan] = useState<SavedPlan | null>(null);
+  const [progress, setProgress] = useState<PlanProgress>({});
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
   const [deleting, setDeleting] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -46,7 +59,10 @@ export default function PlanDetailPage({
       const detail = await getPlan(u.id, id);
       if (!mounted) return;
       if (!detail) setNotFound(true);
-      else setPlan(detail);
+      else {
+        setPlan(detail);
+        setProgress(detail.progress ?? {});
+      }
       setLoading(false);
     };
     init();
@@ -74,6 +90,33 @@ export default function PlanDetailPage({
       setDeleting(false);
     }
   };
+
+  // Action별 진행 상황 업데이트 — 600ms debounce로 한 번에 모아서 저장.
+  const handleProgressChange = (week: number, entry: PlanProgressEntry) => {
+    if (!user || !plan) return;
+    const key = `week_${week}`;
+    setProgress((prev) => {
+      const next = { ...prev, [key]: entry };
+      // schedule debounced save
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      setSaveState("saving");
+      saveTimerRef.current = setTimeout(async () => {
+        const result = await updatePlanProgress(user.id, plan.id, next);
+        setSaveState(result.ok ? "saved" : "error");
+        if (result.ok) {
+          setTimeout(() => setSaveState("idle"), 1500);
+        }
+      }, 600);
+      return next;
+    });
+  };
+
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    },
+    [],
+  );
 
   if (loading || !user) {
     return (
@@ -155,7 +198,14 @@ export default function PlanDetailPage({
           {formatFull(plan.created_at)}에 만들어진 플랜
         </p>
 
-        <PlanView plan={plan.plan} />
+        {/* Progress 헤더 */}
+        <ProgressHeader plan={plan} progress={progress} saveState={saveState} />
+
+        <PlanView
+          plan={plan.plan}
+          progress={progress}
+          onProgressChange={handleProgressChange}
+        />
 
         {plan.personas && plan.personas.length > 0 && (
           <div
@@ -212,6 +262,93 @@ export default function PlanDetailPage({
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProgressHeader({
+  plan,
+  progress,
+  saveState,
+}: {
+  plan: SavedPlan;
+  progress: PlanProgress;
+  saveState: "idle" | "saving" | "saved" | "error";
+}) {
+  const totalActions = plan.plan.months.reduce(
+    (sum, m) => sum + (m.actions?.length ?? 0),
+    0,
+  );
+  const { doneCount, noteCount, pct } = progressStats(progress, totalActions);
+
+  const statusLabel =
+    saveState === "saving"
+      ? "저장 중…"
+      : saveState === "saved"
+        ? "저장됨"
+        : saveState === "error"
+          ? "저장 실패"
+          : null;
+  const statusColor =
+    saveState === "error" ? "var(--warm)" : "var(--green)";
+
+  return (
+    <div
+      className="rounded-2xl p-5 mb-10"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--line)",
+      }}
+    >
+      <div className="flex items-baseline justify-between mb-3">
+        <div>
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-1"
+            style={{ color: "var(--ink-3)" }}
+          >
+            진행 상황
+          </p>
+          <p
+            className="font-serif text-[20px] tracking-[-0.01em]"
+            style={{ color: "var(--ink)" }}
+          >
+            {doneCount} / {totalActions} 완료 · {pct}%
+            {noteCount > 0 && (
+              <span
+                className="ml-2 text-[12px] font-sans"
+                style={{ color: "var(--ink-3)" }}
+              >
+                · 리뷰 {noteCount}개
+              </span>
+            )}
+          </p>
+        </div>
+        {statusLabel && (
+          <span className="text-[11px]" style={{ color: statusColor }}>
+            · {statusLabel}
+          </span>
+        )}
+      </div>
+
+      <div
+        className="w-full h-2 rounded-full overflow-hidden"
+        style={{ background: "var(--line)" }}
+      >
+        <div
+          className="h-full transition-all duration-500"
+          style={{
+            width: `${pct}%`,
+            background: pct === 100 ? "var(--green)" : "var(--warm)",
+          }}
+        />
+      </div>
+
+      <p
+        className="text-[12px] mt-3 leading-relaxed"
+        style={{ color: "var(--ink-3)" }}
+      >
+        매주 또는 행동 하나 완수할 때마다 체크박스를 누르고, 카드를 펼쳐 짧은 리뷰를 남기세요. 자동 저장됩니다.
+      </p>
     </div>
   );
 }

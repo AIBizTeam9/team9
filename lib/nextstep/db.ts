@@ -3,6 +3,14 @@
 import { getSupabase } from "@/lib/supabase";
 import type { Answers, Persona, Plan } from "@/lib/types";
 
+// 진행 상황: 각 action을 week 번호로 키잉. note는 사용자가 적은 회고.
+export type PlanProgressEntry = {
+  done: boolean;
+  note: string;
+  updatedAt: string;
+};
+export type PlanProgress = Record<string, PlanProgressEntry>;
+
 export interface SavedPlan {
   id: string;
   user_id: string;
@@ -10,6 +18,7 @@ export interface SavedPlan {
   answers: Answers;
   personas: Persona[];
   plan: Plan;
+  progress: PlanProgress;
 }
 
 export interface PlanSummary {
@@ -20,6 +29,9 @@ export interface PlanSummary {
   firstStep: string;
   monthsCount: number;
   personaNames: string[];
+  totalActions: number;
+  doneCount: number;
+  noteCount: number;
 }
 
 export type SaveResult =
@@ -58,7 +70,7 @@ export async function listPlans(userId: string): Promise<PlanSummary[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("nextstep_plans")
-    .select("id, created_at, plan, personas")
+    .select("id, created_at, plan, personas, progress")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error || !data) return [];
@@ -68,16 +80,31 @@ export async function listPlans(userId: string): Promise<PlanSummary[]> {
       created_at: string;
       plan: Plan;
       personas: Persona[];
+      progress: PlanProgress | null;
     }>
-  ).map((row) => ({
-    id: row.id,
-    created_at: row.created_at,
-    headline: row.plan.headline,
-    coreInsight: row.plan.coreInsight,
-    firstStep: row.plan.firstStep,
-    monthsCount: row.plan.months?.length ?? 0,
-    personaNames: (row.personas ?? []).map((p) => p.name),
-  }));
+  ).map((row) => {
+    const totalActions = (row.plan.months ?? []).reduce(
+      (s, m) => s + (m.actions?.length ?? 0),
+      0,
+    );
+    const prog = row.progress ?? {};
+    const doneCount = Object.values(prog).filter((p) => p.done).length;
+    const noteCount = Object.values(prog).filter(
+      (p) => p.note && p.note.trim().length > 0,
+    ).length;
+    return {
+      id: row.id,
+      created_at: row.created_at,
+      headline: row.plan.headline,
+      coreInsight: row.plan.coreInsight,
+      firstStep: row.plan.firstStep,
+      monthsCount: row.plan.months?.length ?? 0,
+      personaNames: (row.personas ?? []).map((p) => p.name),
+      totalActions,
+      doneCount,
+      noteCount,
+    };
+  });
 }
 
 export async function getPlan(
@@ -93,7 +120,36 @@ export async function getPlan(
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return null;
-  return data as SavedPlan;
+  const row = data as SavedPlan;
+  return { ...row, progress: row.progress ?? {} };
+}
+
+export async function updatePlanProgress(
+  userId: string,
+  id: string,
+  progress: PlanProgress,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: "Supabase 클라이언트 미초기화" };
+  const { error } = await supabase
+    .from("nextstep_plans")
+    .update({ progress })
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) {
+    console.error("[updatePlanProgress] failed:", error);
+    return { ok: false, error: error.message || "update failed" };
+  }
+  return { ok: true };
+}
+
+export function progressStats(progress: PlanProgress, totalActions: number) {
+  const doneCount = Object.values(progress).filter((p) => p.done).length;
+  const noteCount = Object.values(progress).filter(
+    (p) => p.note && p.note.trim().length > 0,
+  ).length;
+  const pct = totalActions === 0 ? 0 : Math.round((doneCount / totalActions) * 100);
+  return { doneCount, noteCount, pct, totalActions };
 }
 
 export async function deletePlan(userId: string, id: string): Promise<void> {
