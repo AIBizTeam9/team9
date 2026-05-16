@@ -1,9 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
-import type { Answers, Plan, Persona } from '@/lib/types';
+import type { Answers, Persona } from '@/lib/types';
 
-// Vercel 함수 타임아웃을 60초로 — Claude Sonnet 4.6이 한국어로 풀 플랜 생성하면 20~40초 걸림.
-// 기본 10초로는 거의 항상 타임아웃 → 클라이언트가 catch로 가서 quiz로 리다이렉트되는 증상.
+// SSE 스트리밍으로 응답 — Claude 출력이 시작되면 즉시 바이트가 흐르므로
+// Vercel 프록시의 idle timeout(~30s)에 걸리지 않음.
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
@@ -43,6 +43,10 @@ Output exactly the following JSON schema. No prose before or after, no markdown 
 
 Each month should have 3-5 actions. Total resources: 3-5. Weeks across the plan: 1 through 12.`;
 
+function sseEncode(obj: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
+}
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -75,49 +79,46 @@ export async function POST(req: NextRequest) {
 
   const client = new Anthropic({ apiKey });
 
-  let raw: string;
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      // 한국어 출력은 토큰 당 글자 수가 영어보다 적어 4096이 부족 — 3개월 × 5 actions + resources까지 담으려면 8k+ 필요.
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Here are the user's answers (JSON):\n\n${JSON.stringify(answers)}\n\nHere are the two personas the user chose:\n\n${JSON.stringify(personas)}\n\nReturn the 90-day plan as JSON only, matching the schema in the system prompt.`,
-        },
-      ],
-    });
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const msgStream = client.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 8192,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: `Here are the user's answers (JSON):\n\n${JSON.stringify(answers)}\n\nHere are the two personas the user chose:\n\n${JSON.stringify(personas)}\n\nReturn the 90-day plan as JSON only, matching the schema in the system prompt.`,
+            },
+          ],
+        });
 
-    const block = message.content[0];
-    if (block.type !== 'text') {
-      return NextResponse.json({ error: 'unexpected response type' }, { status: 500 });
-    }
-    raw = block.text;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Anthropic API error';
-    console.error('[generate-plan] Anthropic call failed:', message);
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
+        for await (const event of msgStream) {
+          if (
+            event.type === 'content_block_delta' &&
+            event.delta.type === 'text_delta'
+          ) {
+            controller.enqueue(sseEncode({ type: 'delta', text: event.delta.text }));
+          }
+        }
+        controller.enqueue(sseEncode({ type: 'done' }));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'stream error';
+        console.error('[generate-plan] stream error:', msg);
+        controller.enqueue(sseEncode({ type: 'error', message: msg }));
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-  // Strip markdown code fences if the model includes them despite instructions
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-
-  let plan: Plan;
-  try {
-    plan = JSON.parse(cleaned) as Plan;
-  } catch (err) {
-    console.error(
-      '[generate-plan] JSON parse failed. Raw length:',
-      cleaned.length,
-      'last 200 chars:',
-      cleaned.slice(-200),
-      'error:',
-      err instanceof Error ? err.message : err,
-    );
-    return NextResponse.json({ error: 'invalid response' }, { status: 500 });
-  }
-
-  return NextResponse.json(plan);
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }

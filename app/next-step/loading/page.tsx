@@ -87,27 +87,63 @@ export default function LoadingPage() {
         return;
       }
       setMessages(PLAN_MESSAGES);
-      fetch('/api/generate-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, personas: selectedPersonas }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
+      (async () => {
+        try {
+          const res = await fetch('/api/generate-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers, personas: selectedPersonas }),
+          });
+          if (!res.ok || !res.body) {
             const body = (await res.json().catch(() => ({}))) as { error?: string };
             throw new Error(body.error ?? `HTTP ${res.status}`);
           }
-          return res.json();
-        })
-        .then((data) => {
-          sessionStorage.setItem('nextStep.plan', JSON.stringify(data));
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let lineBuf = '';
+          let fullText = '';
+          let serverError: string | null = null;
+          let doneEvent = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            lineBuf += decoder.decode(value, { stream: true });
+            const lines = lineBuf.split('\n');
+            lineBuf = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const payload = line.slice(6).trim();
+              if (!payload) continue;
+              try {
+                const evt = JSON.parse(payload) as
+                  | { type: 'delta'; text: string }
+                  | { type: 'done' }
+                  | { type: 'error'; message: string };
+                if (evt.type === 'delta') fullText += evt.text;
+                else if (evt.type === 'done') doneEvent = true;
+                else if (evt.type === 'error') serverError = evt.message;
+              } catch {
+                // 부분 SSE 이벤트 — 무시
+              }
+            }
+          }
+
+          if (serverError) throw new Error(serverError);
+          if (!doneEvent) throw new Error('스트림이 비정상 종료되었어요. 다시 시도해 주세요.');
+
+          // 마크다운 펜스 제거 후 JSON 파싱
+          const cleaned = fullText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+          const plan = JSON.parse(cleaned);
+          sessionStorage.setItem('nextStep.plan', JSON.stringify(plan));
           router.replace('/next-step/plan');
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error('[loading] generate-plan failed:', err);
           const msg = err instanceof Error ? err.message : 'unknown';
           setErrorMsg(msg);
-        });
+        }
+      })();
     }
   }, [router]);
 
