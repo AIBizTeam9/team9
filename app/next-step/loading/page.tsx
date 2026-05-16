@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Persona } from '@/lib/types';
 
 const PERSONA_MESSAGES = [
   '당신의 이야기를 듣는 중...',
@@ -11,9 +12,14 @@ const PERSONA_MESSAGES = [
 
 const PLAN_MESSAGES = [
   '두 미래가 토론하는 중...',
-  '90일 플랜 만드는 중...',
+  '두 자아의 결론을 90일 플랜으로 옮기는 중...',
   'Almost there...',
 ];
+
+type DebateTurn = { speaker: string; content: string };
+
+const PERSONA_ACCENTS = ['var(--warm)', 'var(--blue)'] as const;
+const PERSONA_BGS = ['var(--warm-soft)', 'var(--blue-soft)'] as const;
 
 export default function LoadingPage() {
   const router = useRouter();
@@ -22,6 +28,9 @@ export default function LoadingPage() {
   const [msgIndex, setMsgIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedPersonasState, setSelectedPersonasState] = useState<Persona[] | null>(null);
+  const [debateTurns, setDebateTurns] = useState<DebateTurn[]>([]);
+  const [visibleTurns, setVisibleTurns] = useState(0);
 
   // Cycle through messages: fade out → swap text → fade in.
   // Restarts when messages array switches (persona → plan phase).
@@ -87,6 +96,35 @@ export default function LoadingPage() {
         return;
       }
       setMessages(PLAN_MESSAGES);
+      setSelectedPersonasState(selectedPersonas as Persona[]);
+
+      // 로딩 중 토론 텍스트 — 빠른 Haiku 호출, 결과를 화면에 흘려보냄.
+      // 실패해도 폴백을 받아 흐름은 깨지지 않음.
+      fetch('/api/persona-debate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personas: selectedPersonas, userContext: answers }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { turns?: DebateTurn[] } | null) => {
+          if (!data?.turns || data.turns.length === 0) return;
+          setDebateTurns(data.turns);
+          // 1.8초 간격으로 버블 순차 노출
+          let i = 0;
+          setVisibleTurns(1);
+          const interval = setInterval(() => {
+            i += 1;
+            if (i >= data.turns!.length) {
+              clearInterval(interval);
+              return;
+            }
+            setVisibleTurns(i + 1);
+          }, 1800);
+        })
+        .catch(() => {
+          // 토론 실패는 무시 — 플랜 생성에는 영향 없음
+        });
+
       (async () => {
         try {
           const res = await fetch('/api/generate-plan', {
@@ -207,16 +245,29 @@ export default function LoadingPage() {
     );
   }
 
+  const personaIndex = (speaker: string): number => {
+    if (!selectedPersonasState) return 0;
+    return selectedPersonasState.findIndex((p) => p.name === speaker) === -1
+      ? 0
+      : selectedPersonasState.findIndex((p) => p.name === speaker);
+  };
+
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-6"
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-12"
       style={{ background: 'var(--bg)' }}
     >
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes bubbleIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* Spinner */}
       <div
-        className="w-9 h-9 rounded-full mb-10"
+        className="w-9 h-9 rounded-full mb-6"
         style={{
           border: '2.5px solid var(--line)',
           borderTopColor: 'var(--warm)',
@@ -234,10 +285,77 @@ export default function LoadingPage() {
           transition: 'opacity 300ms ease, transform 300ms ease',
           minWidth: '220px',
           textAlign: 'center',
+          marginBottom: debateTurns.length > 0 ? '32px' : 0,
         }}
       >
         {messages[msgIndex]}
       </p>
+
+      {/* Debate bubbles — shown progressively while plan generates */}
+      {debateTurns.length > 0 && (
+        <div
+          className="w-full max-w-[520px] flex flex-col gap-3"
+          style={{ animation: 'bubbleIn 400ms ease' }}
+        >
+          {debateTurns.slice(0, visibleTurns).map((turn, i) => {
+            const idx = personaIndex(turn.speaker);
+            const isLeft = idx === 0;
+            return (
+              <div
+                key={i}
+                className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}
+                style={{ animation: 'bubbleIn 400ms ease' }}
+              >
+                <div className="max-w-[78%]">
+                  <p
+                    className="text-[10px] mb-1 px-2"
+                    style={{
+                      color: PERSONA_ACCENTS[idx % 2],
+                      textAlign: isLeft ? 'left' : 'right',
+                    }}
+                  >
+                    {turn.speaker}
+                  </p>
+                  <div
+                    className="rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed"
+                    style={{
+                      background: PERSONA_BGS[idx % 2],
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    {turn.content}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {/* '입력 중' 인디케이터 — 다음 차례 페르소나 표시 */}
+          {visibleTurns < debateTurns.length && (
+            <div
+              className={`flex ${
+                personaIndex(debateTurns[visibleTurns].speaker) === 0
+                  ? 'justify-start'
+                  : 'justify-end'
+              }`}
+            >
+              <div
+                className="rounded-full px-3 py-2 text-[12px] flex gap-1"
+                style={{
+                  background:
+                    PERSONA_BGS[
+                      personaIndex(debateTurns[visibleTurns].speaker) % 2
+                    ],
+                  color: 'var(--ink-3)',
+                }}
+              >
+                <span className="animate-pulse">·</span>
+                <span className="animate-pulse" style={{ animationDelay: '0.2s' }}>·</span>
+                <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>·</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
