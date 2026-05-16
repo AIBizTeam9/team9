@@ -1,18 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signInWithGoogle } from "@/lib/auth";
 
-export default function LoginPage() {
+function LoginInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? undefined;
 
   async function handleGoogleLogin() {
     try {
       setLoading(true);
       setError(null);
-      await signInWithGoogle();
+      // OAuth 후 사용자를 원래 페이지로 돌려보내기 위해 next 경로를 그대로 전달.
+      await signInWithGoogle(next);
     } catch {
       setError("로그인 중 문제가 발생했습니다. 다시 시도해주세요.");
       setLoading(false);
@@ -69,5 +73,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   );
 }
