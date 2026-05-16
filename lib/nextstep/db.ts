@@ -22,12 +22,16 @@ export interface PlanSummary {
   personaNames: string[];
 }
 
+export type SaveResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
+
 export async function savePlan(
   userId: string,
   data: { answers: Answers; personas: Persona[]; plan: Plan },
-): Promise<string | null> {
+): Promise<SaveResult> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { ok: false, error: "Supabase 클라이언트 미초기화" };
   const { data: row, error } = await supabase
     .from("nextstep_plans")
     .insert({
@@ -38,8 +42,15 @@ export async function savePlan(
     })
     .select("id")
     .single();
-  if (error || !row) return null;
-  return (row as { id: string }).id;
+  if (error) {
+    console.error("[savePlan] insert failed:", error);
+    return {
+      ok: false,
+      error: error.message || error.details || "insert failed",
+    };
+  }
+  if (!row) return { ok: false, error: "no row returned" };
+  return { ok: true, id: (row as { id: string }).id };
 }
 
 export async function listPlans(userId: string): Promise<PlanSummary[]> {

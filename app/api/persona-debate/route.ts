@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(fallbackDebate(personas));
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 4 });
 
   try {
     const message = await client.messages.create({

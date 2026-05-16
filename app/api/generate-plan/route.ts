@@ -77,7 +77,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid request body' }, { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey });
+  // maxRetries: 4 — 429/5xx 발생 시 SDK가 지수 백오프로 자동 재시도.
+  // 동시 사용자가 분당 TPM 한도를 잠시 초과해도 알아서 기다렸다 성공.
+  const client = new Anthropic({ apiKey, maxRetries: 4 });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {

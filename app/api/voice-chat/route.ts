@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       return new Response(demoStream(), { headers: baseHeaders });
     }
 
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, maxRetries: 4 });
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {

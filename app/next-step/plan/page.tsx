@@ -17,6 +17,8 @@ export default function PlanPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState(false);
 
   useEffect(() => {
@@ -40,7 +42,6 @@ export default function PlanPage() {
         setLoginPrompt(true);
         return;
       }
-      // 같은 세션에서 중복 저장 방지
       const existing = sessionStorage.getItem('nextStep.plan.savedId');
       if (existing) {
         setSavedId(existing);
@@ -56,15 +57,49 @@ export default function PlanPage() {
       } catch {
         // 일부 입력이 깨졌어도 plan 본문은 저장
       }
-      const id = await savePlan(user.id, { answers, personas, plan });
+      const result = await savePlan(user.id, { answers, personas, plan });
       if (cancelled) return;
-      if (id) {
-        sessionStorage.setItem('nextStep.plan.savedId', id);
-        setSavedId(id);
+      if (result.ok) {
+        sessionStorage.setItem('nextStep.plan.savedId', result.id);
+        setSavedId(result.id);
+        setSaveError(null);
+      } else {
+        console.error('[plan] save failed:', result.error);
+        setSaveError(result.error);
       }
     })();
     return () => { cancelled = true; };
   }, [plan]);
+
+  const handleRetrySave = async () => {
+    if (!plan || retrying) return;
+    setRetrying(true);
+    setSaveError(null);
+    try {
+      const user = await getUser();
+      if (!user) {
+        setLoginPrompt(true);
+        return;
+      }
+      const rawAnswers = sessionStorage.getItem('nextStep.answers');
+      const rawPersonas = sessionStorage.getItem('nextStep.selectedPersonas');
+      let answers: Answers = {};
+      let personas: Persona[] = [];
+      try {
+        if (rawAnswers) answers = JSON.parse(rawAnswers) as Answers;
+        if (rawPersonas) personas = JSON.parse(rawPersonas) as Persona[];
+      } catch {}
+      const result = await savePlan(user.id, { answers, personas, plan });
+      if (result.ok) {
+        sessionStorage.setItem('nextStep.plan.savedId', result.id);
+        setSavedId(result.id);
+      } else {
+        setSaveError(result.error);
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   if (!plan) {
     return (
@@ -193,6 +228,36 @@ export default function PlanPage() {
               </Link>
               에서 다시 볼 수 있어요.
             </p>
+          </div>
+        )}
+        {saveError && !savedId && (
+          <div
+            className="mt-10 rounded-xl p-4"
+            style={{
+              background: 'var(--warm-soft)',
+              border: '1px solid var(--warm)',
+            }}
+          >
+            <p
+              className="text-[12px] font-semibold mb-1"
+              style={{ color: 'var(--warm)' }}
+            >
+              저장에 실패했어요
+            </p>
+            <p
+              className="text-[12px] mb-3"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              {saveError}
+            </p>
+            <button
+              onClick={handleRetrySave}
+              disabled={retrying}
+              className="text-[12px] font-semibold px-3 py-1.5 rounded-full text-white disabled:opacity-50"
+              style={{ background: 'var(--warm)' }}
+            >
+              {retrying ? '다시 저장 중…' : '다시 저장 시도'}
+            </button>
           </div>
         )}
         {loginPrompt && !savedId && (
