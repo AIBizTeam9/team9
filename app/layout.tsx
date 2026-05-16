@@ -25,9 +25,7 @@ export const metadata: Metadata = {
 // /quiz, /debate는 jiyun의 통합 플로우(/next-step) 안에서 처리되므로 네비에서 제외.
 // /plan(seokbin)은 jiyun의 /next-step으로 일원화되어 네비에서 제외.
 // 라우트 디렉터리 자체(app/quiz, app/debate, app/plan)의 정리는 별도 PR에서 처리.
-const NAV_ITEMS = [
-  { href: "/next-step", label: "90일 플랜" },
-];
+const NAV_ITEMS: { href: string; label: string }[] = [];
 
 export default function RootLayout({
   children,
