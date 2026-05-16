@@ -2,6 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import type { Answers, Plan, Persona } from '@/lib/types';
 
+// Vercel 함수 타임아웃을 60초로 — Claude Sonnet 4.6이 한국어로 풀 플랜 생성하면 20~40초 걸림.
+// 기본 10초로는 거의 항상 타임아웃 → 클라이언트가 catch로 가서 quiz로 리다이렉트되는 증상.
+export const maxDuration = 60;
+
 const SYSTEM_PROMPT = `You are a careful, honest career and life coach. Given a person's answers to 15 questions about their life, generate a specific, realistic 90-day plan that respects their stated time budget and savings runway.
 
 You will be given two specific personas (Persona A and Persona B) in the user's input — these are the two futures the user has chosen to weigh against each other. Use them as the dialectic for the plan:
@@ -75,7 +79,8 @@ export async function POST(req: NextRequest) {
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      // 한국어 출력은 토큰 당 글자 수가 영어보다 적어 4096이 부족 — 3개월 × 5 actions + resources까지 담으려면 8k+ 필요.
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -92,6 +97,7 @@ export async function POST(req: NextRequest) {
     raw = block.text;
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Anthropic API error';
+    console.error('[generate-plan] Anthropic call failed:', message);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
@@ -101,7 +107,15 @@ export async function POST(req: NextRequest) {
   let plan: Plan;
   try {
     plan = JSON.parse(cleaned) as Plan;
-  } catch {
+  } catch (err) {
+    console.error(
+      '[generate-plan] JSON parse failed. Raw length:',
+      cleaned.length,
+      'last 200 chars:',
+      cleaned.slice(-200),
+      'error:',
+      err instanceof Error ? err.message : err,
+    );
     return NextResponse.json({ error: 'invalid response' }, { status: 500 });
   }
 
