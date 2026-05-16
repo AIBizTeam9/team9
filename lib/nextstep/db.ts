@@ -68,26 +68,32 @@ export async function savePlan(
 export async function listPlans(userId: string): Promise<PlanSummary[]> {
   const supabase = getSupabase();
   if (!supabase) return [];
+  // select("*")로 가져와 progress 컬럼이 아직 없는 환경(마이그레이션 미적용)에서도 동작.
+  // 명시적으로 'progress'를 select하면 컬럼이 없을 때 쿼리 자체가 실패해 빈 배열이 됨.
   const { data, error } = await supabase
     .from("nextstep_plans")
-    .select("id, created_at, plan, personas, progress")
+    .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  if (error || !data) return [];
+  if (error) {
+    console.error("[listPlans] failed:", error);
+    return [];
+  }
+  if (!data) return [];
   return (
     data as Array<{
       id: string;
       created_at: string;
       plan: Plan;
       personas: Persona[];
-      progress: PlanProgress | null;
+      progress?: PlanProgress | null;
     }>
   ).map((row) => {
     const totalActions = (row.plan.months ?? []).reduce(
       (s, m) => s + (m.actions?.length ?? 0),
       0,
     );
-    const prog = row.progress ?? {};
+    const prog: PlanProgress = row.progress ?? {};
     const doneCount = Object.values(prog).filter((p) => p.done).length;
     const noteCount = Object.values(prog).filter(
       (p) => p.note && p.note.trim().length > 0,
