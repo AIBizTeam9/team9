@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { Plan, PlanAction, PlanMonth, PlanResource } from "@/lib/types";
+import type { PlanProgress, PlanProgressEntry } from "@/lib/nextstep/db";
 
 const EFFORT_STYLE: Record<
   PlanAction["effort"],
@@ -14,10 +16,28 @@ const EFFORT_STYLE: Record<
 type Props = {
   plan: Plan;
   hideFirstStep?: boolean;
+  // 진행 상황 — 주어지면 각 action에 체크박스 + 리뷰 노트 입력이 활성화됨.
+  progress?: PlanProgress;
+  onProgressChange?: (week: number, next: PlanProgressEntry) => void;
 };
 
+function entryFor(progress: PlanProgress | undefined, week: number): PlanProgressEntry {
+  return (
+    progress?.[`week_${week}`] ?? {
+      done: false,
+      note: "",
+      updatedAt: "",
+    }
+  );
+}
+
 // /next-step/plan/page.tsx와 /account/next-step/[id]/page.tsx에서 공유하는 렌더링.
-export default function PlanView({ plan, hideFirstStep = false }: Props) {
+export default function PlanView({
+  plan,
+  hideFirstStep = false,
+  progress,
+  onProgressChange,
+}: Props) {
   return (
     <>
       <h1
@@ -61,7 +81,12 @@ export default function PlanView({ plan, hideFirstStep = false }: Props) {
 
       <div className="flex flex-col gap-14">
         {plan.months.map((month) => (
-          <MonthSection key={month.month} month={month} />
+          <MonthSection
+            key={month.month}
+            month={month}
+            progress={progress}
+            onProgressChange={onProgressChange}
+          />
         ))}
       </div>
 
@@ -107,7 +132,15 @@ export default function PlanView({ plan, hideFirstStep = false }: Props) {
   );
 }
 
-function MonthSection({ month }: { month: PlanMonth }) {
+function MonthSection({
+  month,
+  progress,
+  onProgressChange,
+}: {
+  month: PlanMonth;
+  progress?: PlanProgress;
+  onProgressChange?: (week: number, next: PlanProgressEntry) => void;
+}) {
   return (
     <div>
       <div className="flex items-baseline gap-3 mb-5">
@@ -130,48 +163,178 @@ function MonthSection({ month }: { month: PlanMonth }) {
       </h2>
       <div className="flex flex-col gap-3">
         {month.actions.map((action) => (
-          <ActionCard key={action.week} action={action} />
+          <ActionCard
+            key={action.week}
+            action={action}
+            entry={entryFor(progress, action.week)}
+            onChange={
+              onProgressChange
+                ? (next) => onProgressChange(action.week, next)
+                : undefined
+            }
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ActionCard({ action }: { action: PlanAction }) {
+function ActionCard({
+  action,
+  entry,
+  onChange,
+}: {
+  action: PlanAction;
+  entry: PlanProgressEntry;
+  onChange?: (next: PlanProgressEntry) => void;
+}) {
   const ef = EFFORT_STYLE[action.effort] ?? EFFORT_STYLE.medium;
+  const interactive = !!onChange;
+  const [showNote, setShowNote] = useState(entry.note.length > 0);
+
+  const setDone = (done: boolean) => {
+    onChange?.({ ...entry, done, updatedAt: new Date().toISOString() });
+  };
+  const setNote = (note: string) => {
+    onChange?.({ ...entry, note, updatedAt: new Date().toISOString() });
+  };
+
   return (
     <div
       className="rounded-xl p-5"
-      style={{ background: "var(--bg-2)", border: "1px solid var(--line)" }}
+      style={{
+        background: entry.done ? "var(--green-soft)" : "var(--bg-2)",
+        border: `1px solid ${entry.done ? "var(--green)" : "var(--line)"}`,
+        transition: "background 200ms, border 200ms",
+      }}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          className="text-[11px] font-medium tabular-nums"
-          style={{ color: "var(--ink-3)" }}
-        >
-          Week {action.week}
-        </span>
-        <span
-          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-          style={{ background: ef.bg, color: ef.color }}
-        >
-          {ef.label}
-        </span>
+      <div className="flex items-start gap-3">
+        {interactive && (
+          <button
+            type="button"
+            onClick={() => setDone(!entry.done)}
+            aria-pressed={entry.done}
+            aria-label={entry.done ? "완료 취소" : "완료 표시"}
+            className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-all"
+            style={{
+              background: entry.done ? "var(--green)" : "transparent",
+              border: `1.5px solid ${entry.done ? "var(--green)" : "var(--line-2)"}`,
+            }}
+          >
+            {entry.done && (
+              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                <path
+                  d="M1 4.5L4 7.5L10 1.5"
+                  stroke="white"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="text-[11px] font-medium tabular-nums"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Week {action.week}
+            </span>
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{ background: ef.bg, color: ef.color }}
+            >
+              {ef.label}
+            </span>
+            {entry.done && (
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full ml-auto"
+                style={{ background: "var(--green)", color: "white" }}
+              >
+                ✓ 완료
+              </span>
+            )}
+          </div>
+          <p
+            className="text-[15px] font-medium mb-1.5 leading-snug"
+            style={{
+              color: "var(--ink)",
+              textDecoration: entry.done ? "line-through" : "none",
+              opacity: entry.done ? 0.7 : 1,
+            }}
+          >
+            {action.title}
+          </p>
+          <p
+            className="text-[13px] leading-relaxed"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {action.why}
+          </p>
+
+          {interactive && (
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+              {!showNote && entry.note.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNote(true)}
+                  className="text-[12px] hover:underline"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  + 리뷰 적기
+                </button>
+              ) : (
+                <div>
+                  <label
+                    className="block text-[10px] uppercase tracking-[0.08em] mb-1.5"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    리뷰 · 회고
+                  </label>
+                  <textarea
+                    value={entry.note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="이번 행동에서 배운 것, 느낀 점, 다음에 다르게 할 것을 적어보세요."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-[13px] leading-relaxed resize-y"
+                    style={{
+                      background: "var(--bg)",
+                      border: "1px solid var(--line)",
+                      color: "var(--ink-2)",
+                      minHeight: "60px",
+                    }}
+                  />
+                  {entry.updatedAt && (
+                    <p
+                      className="text-[10px] mt-1.5"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      마지막 저장 {formatRelative(entry.updatedAt)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-      <p
-        className="text-[15px] font-medium mb-1.5 leading-snug"
-        style={{ color: "var(--ink)" }}
-      >
-        {action.title}
-      </p>
-      <p
-        className="text-[13px] leading-relaxed"
-        style={{ color: "var(--ink-3)" }}
-      >
-        {action.why}
-      </p>
     </div>
   );
+}
+
+function formatRelative(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  return `${Math.floor(hr / 24)}일 전`;
 }
 
 function ResourceCard({ resource }: { resource: PlanResource }) {

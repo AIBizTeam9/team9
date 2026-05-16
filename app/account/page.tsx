@@ -5,75 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { getUser, onAuthChange, signOut } from "@/lib/auth";
-import { loadOverallSummary, type OverallSummary } from "@/lib/whytree/db";
 import { loadPlansOverview, type PlansOverview } from "@/lib/nextstep/db";
-
-type ActivityCard = {
-  href: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  tone: "warm" | "blue" | "green" | "violet";
-};
-
-const ACTIVITY_CARDS: ActivityCard[] = [
-  {
-    href: "/next-step",
-    emoji: "🧭",
-    title: "90일 플랜",
-    desc: "내 두 미래를 따라가는 90일 실행 계획",
-    tone: "warm",
-  },
-  {
-    href: "/letter",
-    emoji: "💌",
-    title: "미래의 나에게",
-    desc: "오늘의 내가 미래의 나에게 보내는 편지",
-    tone: "violet",
-  },
-  {
-    href: "/market/compare",
-    emoji: "⚖️",
-    title: "두 미래 비교",
-    desc: "두 키워드를 5개 시장 축에서 나란히",
-    tone: "blue",
-  },
-  {
-    href: "/market",
-    emoji: "📊",
-    title: "시장 인사이트",
-    desc: "기술·산업·연봉·스킬·전망 데이터",
-    tone: "blue",
-  },
-  {
-    href: "/resources",
-    emoji: "🧰",
-    title: "리소스 허브",
-    desc: "채용·강의·커뮤니티 외부 자료",
-    tone: "green",
-  },
-  {
-    href: "/bookmarks",
-    emoji: "🔖",
-    title: "내 북마크",
-    desc: "저장한 시장·리소스 카드 모음",
-    tone: "warm",
-  },
-];
-
-const TONE_BG: Record<ActivityCard["tone"], string> = {
-  warm: "var(--warm-soft)",
-  blue: "var(--blue-soft)",
-  green: "var(--green-soft)",
-  violet: "#f0ecf9",
-};
-
-const TONE_FG: Record<ActivityCard["tone"], string> = {
-  warm: "var(--warm)",
-  blue: "var(--blue)",
-  green: "var(--green)",
-  violet: "#7c5cbf",
-};
 
 function formatDate(input: string | null | undefined): string | null {
   if (!input) return null;
@@ -91,9 +23,6 @@ export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
-  const [whytreeSummary, setWhytreeSummary] = useState<OverallSummary | null>(
-    null,
-  );
   const [plansOverview, setPlansOverview] = useState<PlansOverview | null>(
     null,
   );
@@ -109,12 +38,8 @@ export default function AccountPage() {
         router.replace("/login");
         return;
       }
-      const [summary, overview] = await Promise.all([
-        loadOverallSummary(u.id),
-        loadPlansOverview(u.id),
-      ]);
+      const overview = await loadPlansOverview(u.id);
       if (!mounted) return;
-      setWhytreeSummary(summary);
       setPlansOverview(overview);
     });
 
@@ -124,12 +49,8 @@ export default function AccountPage() {
       setUser(next);
       if (!next) router.replace("/login");
       else {
-        Promise.all([
-          loadOverallSummary(next.id),
-          loadPlansOverview(next.id),
-        ]).then(([s, o]) => {
+        loadPlansOverview(next.id).then((o) => {
           if (!mounted) return;
-          setWhytreeSummary(s);
           setPlansOverview(o);
         });
       }
@@ -298,61 +219,10 @@ export default function AccountPage() {
           </button>
         </aside>
 
-        {/* 우: 내 활동 바로가기 */}
+        {/* 우: 저장된 90일 플랜 */}
         <section>
-          <p
-            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
-            style={{ color: "var(--ink-3)" }}
-          >
-            내 활동 바로가기
-          </p>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {ACTIVITY_CARDS.map((c) => (
-              <Link
-                key={c.href}
-                href={c.href}
-                className="group rounded-2xl p-5 transition-all hover:shadow-lg"
-                style={{
-                  background: "var(--bg-2)",
-                  border: "1px solid var(--line)",
-                  boxShadow: "var(--shadow)",
-                }}
-              >
-                <div className="flex items-start gap-3 mb-2">
-                  <span
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: TONE_BG[c.tone] }}
-                  >
-                    {c.emoji}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className="font-serif text-[16px] tracking-[-0.01em] mb-0.5 group-hover:opacity-80 transition-opacity"
-                      style={{ color: "var(--ink)" }}
-                    >
-                      {c.title}
-                    </h3>
-                    <p
-                      className="text-[12px] leading-relaxed line-clamp-2"
-                      style={{ color: "var(--ink-3)" }}
-                    >
-                      {c.desc}
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="flex items-center justify-end text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ color: TONE_FG[c.tone] }}
-                >
-                  바로가기 →
-                </div>
-              </Link>
-            ))}
-          </div>
-
           {/* 90일 플랜 — 저장된 플랜 목록 */}
-          <div className="mt-8">
+          <div>
             <p
               className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
               style={{ color: "var(--ink-3)" }}
@@ -448,111 +318,6 @@ export default function AccountPage() {
             </Link>
           </div>
 
-          {/* Why Tree 대화 기록 — 로그인 사용자에게만 의미가 있는 영역 */}
-          <div className="mt-8">
-            <p
-              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
-              style={{ color: "var(--ink-3)" }}
-            >
-              Why Tree · 대화 기록
-            </p>
-            <Link
-              href="/account/whytree"
-              className="group block rounded-2xl p-5 transition-all hover:shadow-lg"
-              style={{
-                background: "var(--bg-2)",
-                border: "1px solid var(--line)",
-                boxShadow: "var(--shadow)",
-              }}
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <span
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                  style={{ background: "var(--blue-soft)" }}
-                >
-                  🌳
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3
-                    className="font-serif text-[16px] tracking-[-0.01em] mb-0.5"
-                    style={{ color: "var(--ink)" }}
-                  >
-                    지나간 대화들
-                  </h3>
-                  <p
-                    className="text-[12px] leading-relaxed"
-                    style={{ color: "var(--ink-3)" }}
-                  >
-                    {whytreeSummary === null
-                      ? "불러오는 중…"
-                      : whytreeSummary.hasData
-                        ? `${whytreeSummary.totalSessions}일 동안 대화 ${whytreeSummary.totalMessages}개 · 노드 ${whytreeSummary.totalNodes}개${
-                            whytreeSummary.lastUpdatedAt
-                              ? ` · 마지막 ${formatRelative(
-                                  whytreeSummary.lastUpdatedAt,
-                                )}`
-                              : ""
-                          }`
-                        : "아직 시작된 대화가 없어요. Why 트리에서 첫 질문을 받아보세요."}
-                  </p>
-                </div>
-              </div>
-
-              {whytreeSummary?.hasData && (
-                <dl
-                  className="grid gap-2 text-[12px] pt-3"
-                  style={{ borderTop: "1px solid var(--line)" }}
-                >
-                  {whytreeSummary.latestPurpose && (
-                    <div className="flex gap-3">
-                      <dt
-                        className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
-                        style={{ color: "var(--ink-3)" }}
-                      >
-                        최근 목적
-                      </dt>
-                      <dd
-                        className="flex-1 font-serif"
-                        style={{ color: "var(--ink)" }}
-                      >
-                        {whytreeSummary.latestPurpose}
-                      </dd>
-                    </div>
-                  )}
-                  {whytreeSummary.latestExperiment && (
-                    <div className="flex gap-3">
-                      <dt
-                        className="w-[64px] flex-shrink-0 text-[10px] uppercase tracking-[0.06em]"
-                        style={{ color: "var(--green)" }}
-                      >
-                        최근 실험
-                      </dt>
-                      <dd
-                        className="flex-1"
-                        style={{ color: "var(--ink-2)" }}
-                      >
-                        {whytreeSummary.latestExperiment}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              )}
-
-              <div
-                className="flex items-center justify-end mt-3 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: "var(--blue)" }}
-              >
-                대화 기록 보기 →
-              </div>
-            </Link>
-          </div>
-
-          <p
-            className="text-[11px] mt-5"
-            style={{ color: "var(--ink-3)" }}
-          >
-            진행률·통계 표시는 다음 업데이트에서 추가됩니다.
-          </p>
         </section>
       </main>
     </div>

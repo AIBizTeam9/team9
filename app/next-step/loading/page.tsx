@@ -115,7 +115,19 @@ export default function LoadingPage() {
       setMessages(PLAN_MESSAGES);
       setSelectedPersonasState(selectedPersonas as Persona[]);
 
-      // 로딩 중 토론 텍스트 — 빠른 Haiku 호출, 결과를 화면에 흘려보냄.
+      // 두 비동기 작업이 모두 끝나야 plan 페이지로 이동.
+      //   1) generate-plan 응답이 도착 (plan 객체)
+      //   2) 토론 버블이 마지막까지 노출 완료
+      let planObjLocal: unknown = null;
+      let debateDone = false;
+      const tryNavigate = () => {
+        if (planObjLocal && debateDone) {
+          sessionStorage.setItem('nextStep.plan', JSON.stringify(planObjLocal));
+          router.replace('/next-step/plan');
+        }
+      };
+
+      // 로딩 중 16턴 토론을 LLM(Haiku)로 받아 1.4초 간격으로 흘려보냄. ~22초.
       // 실패해도 폴백을 받아 흐름은 깨지지 않음.
       fetch('/api/persona-debate', {
         method: 'POST',
@@ -124,22 +136,29 @@ export default function LoadingPage() {
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { turns?: DebateTurn[] } | null) => {
-          if (!data?.turns || data.turns.length === 0) return;
+          if (!data?.turns || data.turns.length === 0) {
+            // 토론 못 받으면 즉시 debateDone 처리
+            debateDone = true;
+            tryNavigate();
+            return;
+          }
           setDebateTurns(data.turns);
-          // 1.8초 간격으로 버블 순차 노출
           let i = 0;
           setVisibleTurns(1);
           const interval = setInterval(() => {
             i += 1;
             if (i >= data.turns!.length) {
               clearInterval(interval);
+              debateDone = true;
+              tryNavigate();
               return;
             }
             setVisibleTurns(i + 1);
-          }, 1800);
+          }, 1400);
         })
         .catch(() => {
-          // 토론 실패는 무시 — 플랜 생성에는 영향 없음
+          debateDone = true;
+          tryNavigate();
         });
 
       (async () => {
@@ -214,8 +233,9 @@ export default function LoadingPage() {
             console.warn('[loading] plan received but done event missing — proceeding anyway');
           }
 
-          sessionStorage.setItem('nextStep.plan', JSON.stringify(planObj));
-          router.replace('/next-step/plan');
+          // 플랜 준비 완료 — 토론이 끝났으면 즉시 이동, 아니면 토론 끝날 때까지 대기.
+          planObjLocal = planObj;
+          tryNavigate();
         } catch (err) {
           console.error('[loading] generate-plan failed:', {
             err,

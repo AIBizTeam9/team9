@@ -179,37 +179,108 @@ export default function QuizPage() {
 
             {/* text / number */}
             {(q.type === 'text' || q.type === 'number') && (
-              <input
-                type={q.type}
-                value={currentValue}
-                placeholder={q.ph}
-                autoFocus
-                className="q-input w-full px-4 py-3 rounded-xl text-[15px] outline-none transition-all"
-                style={{
-                  background: 'var(--bg-2)',
-                  border: '1px solid var(--line-2)',
-                  color: 'var(--ink)',
-                }}
-                onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
-              />
+              <>
+                {/* 빠른 선택 칩 (text 전용 — 단일 선택) */}
+                {q.type === 'text' && q.quickPicks && q.quickPicks.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {q.quickPicks.map((pick) => {
+                      const selected = currentValue.trim() === pick;
+                      return (
+                        <button
+                          key={pick}
+                          type="button"
+                          onClick={() => setAnswer(pick)}
+                          className="choice-btn px-3 py-1.5 rounded-full text-[13px] transition-all"
+                          style={{
+                            background: selected ? 'var(--warm-soft)' : 'var(--bg-2)',
+                            border: `1px solid ${selected ? 'var(--warm)' : 'var(--line-2)'}`,
+                            color: selected ? 'var(--warm)' : 'var(--ink-2)',
+                            fontWeight: selected ? 500 : 400,
+                          }}
+                        >
+                          {pick}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <input
+                  type={q.type}
+                  value={currentValue}
+                  placeholder={q.ph}
+                  autoFocus
+                  className="q-input w-full px-4 py-3 rounded-xl text-[15px] outline-none transition-all"
+                  style={{
+                    background: 'var(--bg-2)',
+                    border: '1px solid var(--line-2)',
+                    color: 'var(--ink)',
+                  }}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
+                />
+                {q.type === 'text' && q.quickPicks && q.quickPicks.length > 0 && (
+                  <p className="text-[11px] mt-2" style={{ color: 'var(--ink-3)' }}>
+                    위에서 골라도 되고, 직접 적어도 됩니다.
+                  </p>
+                )}
+              </>
             )}
 
             {/* textarea */}
             {q.type === 'textarea' && (
-              <textarea
-                value={currentValue}
-                placeholder={q.ph}
-                rows={4}
-                autoFocus
-                className="q-input w-full px-4 py-3 rounded-xl text-[15px] outline-none transition-all resize-none"
-                style={{
-                  background: 'var(--bg-2)',
-                  border: '1px solid var(--line-2)',
-                  color: 'var(--ink)',
-                }}
-                onChange={(e) => setAnswer(e.target.value)}
-              />
+              <>
+                {/* 빠른 선택 칩 (textarea — 토글 다중 선택) */}
+                {q.quickPicks && q.quickPicks.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {q.quickPicks.map((pick) => {
+                      const parts = currentValue
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      const selected = parts.includes(pick);
+                      return (
+                        <button
+                          key={pick}
+                          type="button"
+                          onClick={() => {
+                            const next = selected
+                              ? parts.filter((p) => p !== pick).join(', ')
+                              : [...parts, pick].join(', ');
+                            setAnswer(next);
+                          }}
+                          className="choice-btn px-3 py-1.5 rounded-full text-[13px] transition-all"
+                          style={{
+                            background: selected ? 'var(--warm-soft)' : 'var(--bg-2)',
+                            border: `1px solid ${selected ? 'var(--warm)' : 'var(--line-2)'}`,
+                            color: selected ? 'var(--warm)' : 'var(--ink-2)',
+                            fontWeight: selected ? 500 : 400,
+                          }}
+                        >
+                          {pick}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <textarea
+                  value={currentValue}
+                  placeholder={q.ph}
+                  rows={4}
+                  autoFocus
+                  className="q-input w-full px-4 py-3 rounded-xl text-[15px] outline-none transition-all resize-none"
+                  style={{
+                    background: 'var(--bg-2)',
+                    border: '1px solid var(--line-2)',
+                    color: 'var(--ink)',
+                  }}
+                  onChange={(e) => setAnswer(e.target.value)}
+                />
+                {q.quickPicks && q.quickPicks.length > 0 && (
+                  <p className="text-[11px] mt-2" style={{ color: 'var(--ink-3)' }}>
+                    위 항목을 클릭해 선택하거나, 직접 풀어 적어도 됩니다. 구체적일수록 좋은 플랜이 나와요.
+                  </p>
+                )}
+              </>
             )}
 
             {/* choice */}

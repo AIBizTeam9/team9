@@ -188,6 +188,53 @@ export default function NextStepPlansListPage() {
                   </span>
                 </div>
 
+                {/* 진행률 바 */}
+                {p.totalActions > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className="text-[10px] uppercase tracking-[0.06em]"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        진행률
+                      </span>
+                      <span
+                        className="text-[11px] tabular-nums"
+                        style={{ color: "var(--ink-2)" }}
+                      >
+                        {p.doneCount} / {p.totalActions}
+                        {p.noteCount > 0 && (
+                          <span
+                            className="ml-2"
+                            style={{ color: "var(--ink-3)" }}
+                          >
+                            · 리뷰 {p.noteCount}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="w-full h-1.5 rounded-full overflow-hidden"
+                      style={{ background: "var(--line)" }}
+                    >
+                      <div
+                        className="h-full transition-all"
+                        style={{
+                          width: `${
+                            p.totalActions === 0
+                              ? 0
+                              : Math.round((p.doneCount / p.totalActions) * 100)
+                          }%`,
+                          background:
+                            p.doneCount === p.totalActions
+                              ? "var(--green)"
+                              : "var(--warm)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <p
                   className="text-[13px] leading-relaxed mt-2 line-clamp-2 font-serif italic"
                   style={{ color: "var(--ink-2)" }}

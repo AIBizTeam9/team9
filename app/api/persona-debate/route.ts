@@ -7,18 +7,23 @@ import type { Persona, Answers } from "@/lib/types";
 
 export const maxDuration = 30;
 
-const SYSTEM_PROMPT = `You are simulating a brief, urgent debate between two future-self personas of the same user. They argue over what the user should do next.
+const SYSTEM_PROMPT = `You are simulating an urgent, deepening debate between two future-self personas of the same user. They argue over what the user should do next.
 
 Output ONLY a JSON object with this schema:
 { "turns": [ { "speaker": "<persona name>", "content": "<1-2 short sentences>" }, ... ] }
 
 Rules:
-- Exactly 4 turns, alternating Persona A, Persona B, Persona A, Persona B (use the names from input).
-- Each turn 1-2 short sentences. Total under 80 characters per turn.
+- Generate 16 turns, strictly alternating Persona A, Persona B, A, B, ... (use the exact names from input).
+- Each turn 1-2 short sentences. Total under ~100 characters per turn.
+- The debate should ESCALATE in depth, not flatten:
+  - Turns 1-4: opening positions (each persona states why their path matters)
+  - Turns 5-8: direct challenges (each names the other's blind spot)
+  - Turns 9-12: vulnerabilities (admit the cost of their own path, but defend it)
+  - Turns 13-16: the real stakes (what's actually at risk for the user) — leave tension UNRESOLVED
 - Stay in character — draw from each persona's coreBelief, keyFear, strongestArgument.
 - Use casual Korean (반말) like inner voices of the user, NOT formal third-person analysis.
-- Reference the user's situation (stuck, desiredChange) when given.
-- The final turn should leave tension — do NOT resolve or compromise. They are still disagreeing.
+- Reference the user's situation (stuck, desiredChange) when given. Quote their own words when possible.
+- Do not repeat the same point twice. Each turn must add a new angle or push deeper.
 - Match the language of the user's free-text answers (Korean if Korean, English if English).
 - No markdown, no preamble, just the JSON.`;
 
@@ -27,12 +32,25 @@ type DebateResponse = { turns: DebateTurn[] };
 
 function fallbackDebate(personas: Persona[]): DebateResponse {
   const [a, b] = personas;
+  // 16턴 폴백 — API 실패해도 길이 유지.
   return {
     turns: [
-      { speaker: a.name, content: a.strongestArgument || a.coreBelief },
-      { speaker: b.name, content: b.strongestArgument || b.coreBelief },
-      { speaker: a.name, content: "그래도 안전한 길이 맞아. 지금은." },
-      { speaker: b.name, content: "그 '지금은'이 5년이 되는 거 알잖아." },
+      { speaker: a.name, content: a.coreBelief },
+      { speaker: b.name, content: b.coreBelief },
+      { speaker: a.name, content: a.strongestArgument },
+      { speaker: b.name, content: b.strongestArgument },
+      { speaker: a.name, content: "너 지금 이게 잘못된 걸 알면서도 미루고 있잖아." },
+      { speaker: b.name, content: "안전이라는 단어로 두려움을 포장하지 마." },
+      { speaker: a.name, content: "준비 안 된 채로 뛰어들면 더 큰 후회만 남아." },
+      { speaker: b.name, content: "완벽한 준비는 없어. 시작이 준비를 만들어." },
+      { speaker: a.name, content: a.keyFear + " 그게 진짜야." },
+      { speaker: b.name, content: b.keyFear + " 그건 더 무서워." },
+      { speaker: a.name, content: "오늘 한 발만 천천히, 그게 진짜 용기야." },
+      { speaker: b.name, content: "한 발 한 발이 모여서 5년이 되는 거 알지?" },
+      { speaker: a.name, content: "그 5년을 누리려고 지금 참는 거야." },
+      { speaker: b.name, content: "그 5년 동안 진짜 너는 어디 있어?" },
+      { speaker: a.name, content: "내가 진짜 잃을 게 뭔지 봐줘. 그게 사라지면 끝이야." },
+      { speaker: b.name, content: "잃을 게 무서워서 한 번도 가져본 적 없는 거 아냐?" },
     ],
   };
 }
@@ -66,7 +84,8 @@ export async function POST(req: NextRequest) {
   try {
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 800,
+      // 16턴 × ~100자 = ~1600자. 토큰 여유 잡아서 2500.
+      max_tokens: 2500,
       system: SYSTEM_PROMPT,
       messages: [
         {

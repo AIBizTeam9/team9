@@ -269,7 +269,7 @@ export default function PlanPage() {
               지금 본 플랜을 나중에 다시 보려면 — 구글 한 번 누르면 끝이에요.
             </p>
             <Link
-              href="/login"
+              href="/login?next=/next-step/plan"
               className="inline-block text-[12px] font-semibold underline"
               style={{ color: 'var(--ink)' }}
             >
