@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Plan, PlanAction, PlanMonth, PlanResource } from "@/lib/types";
 import type { PlanProgress, PlanProgressEntry } from "@/lib/nextstep/db";
+import CalendarExportButton from "./calendar-export-button";
 
 const EFFORT_STYLE: Record<
   PlanAction["effort"],
@@ -19,6 +20,11 @@ type Props = {
   // 진행 상황 — 주어지면 각 action에 체크박스 + 리뷰 노트 입력이 활성화됨.
   progress?: PlanProgress;
   onProgressChange?: (week: number, next: PlanProgressEntry) => void;
+  // 캘린더 .ics export의 day-1 기준일. 저장된 플랜은 plan.created_at, 새로 만든
+  // 플랜은 today. 누락 시 export 버튼은 숨김.
+  startDate?: Date;
+  // 안정적인 UID 부여용 (saved-plan view → plan.id).
+  planId?: string;
 };
 
 function entryFor(progress: PlanProgress | undefined, week: number): PlanProgressEntry {
@@ -37,6 +43,8 @@ export default function PlanView({
   hideFirstStep = false,
   progress,
   onProgressChange,
+  startDate,
+  planId,
 }: Props) {
   return (
     <>
@@ -127,6 +135,10 @@ export default function PlanView({
             {plan.firstStep}
           </p>
         </div>
+      )}
+
+      {startDate && (
+        <CalendarExportButton plan={plan} startDate={startDate} planId={planId} />
       )}
     </>
   );

@@ -205,6 +205,8 @@ export default function PlanDetailPage({
           plan={plan.plan}
           progress={progress}
           onProgressChange={handleProgressChange}
+          startDate={new Date(plan.created_at)}
+          planId={plan.id}
         />
 
         {plan.personas && plan.personas.length > 0 && (
