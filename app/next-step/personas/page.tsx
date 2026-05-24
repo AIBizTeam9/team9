@@ -5,33 +5,29 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Persona } from '@/lib/types';
 
+function readInitialPersonas(): Persona[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rawPersonas = sessionStorage.getItem('nextStep.personas');
+    const rawAnswers = sessionStorage.getItem('nextStep.answers');
+    if (!rawPersonas || !rawAnswers) return null;
+    const parsed: unknown = JSON.parse(rawPersonas);
+    if (!Array.isArray(parsed) || parsed.length !== 4) return null;
+    return parsed as Persona[];
+  } catch {
+    return null;
+  }
+}
+
 export default function PersonasPage() {
   const router = useRouter();
-  const [personas, setPersonas] = useState<Persona[] | null>(null);
+  const [personas] = useState<Persona[] | null>(readInitialPersonas);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [shakingIndex, setShakingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    try {
-      const rawPersonas = sessionStorage.getItem('nextStep.personas');
-      const rawAnswers = sessionStorage.getItem('nextStep.answers');
-
-      if (!rawPersonas || !rawAnswers) {
-        router.replace('/next-step/quiz');
-        return;
-      }
-
-      const parsed = JSON.parse(rawPersonas);
-      if (!Array.isArray(parsed) || parsed.length !== 4) {
-        router.replace('/next-step/quiz');
-        return;
-      }
-
-      setPersonas(parsed as Persona[]);
-    } catch {
-      router.replace('/next-step/quiz');
-    }
-  }, [router]);
+    if (personas === null) router.replace('/next-step/quiz');
+  }, [personas, router]);
 
   function handleCardClick(i: number) {
     if (selectedIndices.includes(i)) {

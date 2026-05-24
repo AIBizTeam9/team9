@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type DeliveryWindow = "30d" | "90d" | "180d" | "365d";
 
@@ -51,16 +51,14 @@ function formatDate(iso: string): string {
 }
 
 export default function LetterPage() {
-  const [letters, setLetters] = useState<Letter[]>([]);
+  const [letters, setLetters] = useState<Letter[]>(() =>
+    typeof window === "undefined" ? [] : loadLetters(),
+  );
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [windowKey, setWindowKey] = useState<DeliveryWindow>("90d");
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLetters(loadLetters());
-  }, []);
 
   const handleSubmit = async () => {
     if (!content.trim()) {

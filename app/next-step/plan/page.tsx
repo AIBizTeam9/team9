@@ -11,19 +11,24 @@ const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; la
   large:  { bg: 'var(--blue-soft)',   color: 'var(--blue)',   label: 'large' },
 };
 
+function readInitialPlan(): Plan | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem('nextStep.plan');
+    if (!raw) return null;
+    return JSON.parse(raw) as Plan;
+  } catch {
+    return null;
+  }
+}
+
 export default function PlanPage() {
   const router = useRouter();
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan] = useState<Plan | null>(readInitialPlan);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('nextStep.plan');
-    if (!raw) { router.replace('/next-step'); return; }
-    try {
-      setPlan(JSON.parse(raw) as Plan);
-    } catch {
-      router.replace('/next-step');
-    }
-  }, [router]);
+    if (plan === null) router.replace('/next-step');
+  }, [plan, router]);
 
   if (!plan) {
     return (
@@ -87,7 +92,7 @@ export default function PlanPage() {
             className="font-serif leading-[1.4]"
             style={{ color: 'var(--ink)', fontSize: 'clamp(18px, 2.5vw, 22px)', fontStyle: 'italic' }}
           >
-            "{plan.coreInsight}"
+            &ldquo;{plan.coreInsight}&rdquo;
           </p>
         </div>
 

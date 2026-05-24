@@ -40,9 +40,12 @@ export default function VoiceChat({
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [supported, setSupported] = useState<{ tts: boolean; stt: boolean }>({
-    tts: false,
-    stt: false,
+  const [supported] = useState<{ tts: boolean; stt: boolean }>(() => {
+    if (typeof window === "undefined") return { tts: false, stt: false };
+    return {
+      tts: !!window.speechSynthesis,
+      stt: !!getSpeechRecognition(),
+    };
   });
   const [started, setStarted] = useState(false);
 
@@ -50,11 +53,7 @@ export default function VoiceChat({
   const recRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    const tts = typeof window !== "undefined" && !!window.speechSynthesis;
-    const stt = !!getSpeechRecognition();
-    setSupported({ tts, stt });
-
-    if (tts) {
+    if (supported.tts) {
       const apply = () => {
         voiceRef.current = pickKoreanVoice();
       };
@@ -66,7 +65,7 @@ export default function VoiceChat({
       cancelSpeak();
       recRef.current?.stop();
     };
-  }, []);
+  }, [supported.tts]);
 
   const sayAndAppend = useCallback(
     async (text: string) => {

@@ -35,11 +35,12 @@ export default function ResourcesPage() {
   const [searchInput, setSearchInput] = useState("");
 
   // 개인화: 클릭 누적 → 미본 항목 추천 + ✓ 표시
-  const [viewed, setViewed] = useState<Set<string>>(new Set());
+  const [viewed, setViewed] = useState<Set<string>>(() =>
+    typeof window === "undefined" ? new Set() : viewedIdSet("resources"),
+  );
   const [activityVersion, setActivityVersion] = useState(0);
 
   useEffect(() => {
-    setViewed(viewedIdSet("resources"));
     const unsub = subscribeActivityChanges("resources", () => {
       setViewed(viewedIdSet("resources"));
       setActivityVersion((v) => v + 1);
@@ -62,22 +63,25 @@ export default function ResourcesPage() {
     fetchResources().then(setAllResources).catch(() => {});
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const cat = activeCategory === "all" ? undefined : activeCategory;
-      const data = await fetchResources(cat, keyword || undefined);
-      setResources(data);
-    } catch {
-      setResources([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeCategory, keyword]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      try {
+        const cat = activeCategory === "all" ? undefined : activeCategory;
+        const data = await fetchResources(cat, keyword || undefined);
+        if (!cancelled) setResources(data);
+      } catch {
+        if (!cancelled) setResources([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, keyword]);
 
   const onCardClick = useCallback((r: Resource) => {
     recordView("resources", {
