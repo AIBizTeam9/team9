@@ -1,6 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import type { Answers, Persona, PersonasResponse } from '@/lib/types';
+import { checkBodySize, checkRateLimit } from '@/lib/rate-limit';
+
+// 4개 페르소나를 1번 호출로 만든다 — generate-plan보단 싸지만 여전히 Sonnet.
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const MAX_ANSWER_KEYS = 60;
+const MAX_ANSWER_VALUE_LEN = 2000;
 
 const SYSTEM_PROMPT = `You are a psychological mirror. Given a person's quiz answers (and any follow-up clarifications stored as \`<key>_followup\`), generate FOUR distinct future personas — four plausible versions of who they could be three years from now, each shaped by a different trade-off among the tensions they described.
 
@@ -39,6 +46,19 @@ function isValidPersona(p: unknown): p is Persona {
 }
 
 export async function POST(req: NextRequest) {
+  const sizeBlock = checkBodySize(req);
+  if (sizeBlock && !sizeBlock.ok) {
+    return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
+  }
+
+  const rl = checkRateLimit(req, 'personas', RATE_LIMIT, RATE_WINDOW_MS);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited', retryAfterSec: rl.retryAfterSec },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
@@ -49,6 +69,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body?.answers || typeof body.answers !== 'object') {
       return NextResponse.json({ error: 'missing or invalid "answers" field' }, { status: 400 });
+    }
+    const answerKeys = Object.keys(body.answers as Record<string, unknown>);
+    if (answerKeys.length > MAX_ANSWER_KEYS) {
+      return NextResponse.json({ error: 'too many answer fields' }, { status: 400 });
+    }
+    for (const [, v] of Object.entries(body.answers as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.length > MAX_ANSWER_VALUE_LEN) {
+        return NextResponse.json({ error: 'an answer value is too long' }, { status: 400 });
+      }
     }
     answers = body.answers as Answers;
   } catch {
