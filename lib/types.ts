@@ -39,3 +39,12 @@ export type Persona = {
 export type PersonasResponse = {
   personas: Persona[]; // exactly 4
 };
+
+export type DebateTurn = {
+  speaker: string;  // must equal one of the two persona names
+  message: string;  // 1-3 sentences
+};
+
+export type DebateResponse = {
+  turns: DebateTurn[]; // ~12-18 turns, alternating speakers
+};
