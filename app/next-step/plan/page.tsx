@@ -387,6 +387,11 @@ function ResourceCard({ resource }: { resource: PlanResource }) {
           <p className="text-[12px] mb-2 truncate" style={{ color: 'var(--warm)' }}>
             {resource.url}
           </p>
+          {resource.source && (
+            <p className="text-[11px] mb-2" style={{ color: 'var(--ink-3)' }}>
+              출처: {resource.source}
+            </p>
+          )}
           <p className="text-[13px] leading-relaxed" style={{ color: 'var(--ink-3)' }}>
             {resource.why}
           </p>

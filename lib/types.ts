@@ -17,6 +17,7 @@ export type PlanResource = {
   title: string;
   url: string;
   why: string;
+  source?: string; // 검증된 라이브러리에서 가져왔을 때만 채워진다 ("출처: 인프런" 등)
 };
 
 export type Plan = {
