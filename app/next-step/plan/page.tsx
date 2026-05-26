@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { Plan, PlanMonth, PlanAction, PlanResource, Answers, Persona } from '@/lib/types';
 import { getUser } from '@/lib/auth';
 import { savePlan } from '@/lib/nextstep/db';
+import CalendarExportButton from '@/components/nextstep/calendar-export-button';
 
 const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; label: string }> = {
   small:  { bg: 'var(--green-soft)',  color: 'var(--green)',  label: 'small' },
@@ -213,6 +214,9 @@ export default function PlanPage() {
             {plan.firstStep}
           </p>
         </div>
+
+        {/* ── Calendar export — day-1 = today (fresh result) ── */}
+        <CalendarExportButton plan={plan} startDate={new Date()} />
 
         {/* Save status */}
         {savedId && (
