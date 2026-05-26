@@ -1,6 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { Answers, Persona, Plan, PlanMonth, PlanResource } from "@/lib/types";
+import {
+  findResource,
+  libraryCatalogForPrompt,
+} from "@/lib/nextstep/resource-library";
 
 // 5개 병렬 Claude 호출로 분할 — 한 번의 거대 호출이 60초를 넘기는 문제를 회피.
 // 각 호출은 output 1500~2000 토큰으로 작아 8~12초에 끝남.
@@ -49,18 +53,27 @@ Schema:
   ]
 }`;
 
-const RESOURCES_PROMPT = `You are a career and life coach. Given a user's quiz answers and two personas, produce 3-5 specific resources.
+// 환각된 URL을 차단하기 위해 모델은 카탈로그에서 id를 "선택"만 한다.
+// URL은 서버가 라이브러리에서 직접 가져온다 — 모델은 url 필드를 만들지 않는다.
+const RESOURCES_PROMPT = `You are a career and life coach. Given a user's quiz answers, two personas, and a CATALOG of verified resources, pick the 3-5 MOST relevant items for this specific user.
 
 ${COMMON_RULES}
 
-Hard rule: Only cite well-known sites with real, working URLs (Harvard Business Review, Coursera, NYT, MIT OCW, official org pages). Never invent URLs.
+Hard rules for resources:
+- You may ONLY return ids that appear in the catalog below — character-for-character.
+- Do NOT invent ids, urls, or titles. Do not paraphrase ids.
+- Each "why" must be 1-2 sentences specific to THIS user (reference their stuck/desiredChange/feelsAlive, or one of the personas by name). Generic reasons ("good for learning") are rejected.
+- Pick a mix across categories when relevant (jobs / courses / books / communities / trends), not 5 books.
 
 Schema:
 {
-  "resources": [
-    { "title": "string", "url": "string", "why": "string (1-2 sentences)" }
+  "picks": [
+    { "id": "string — must match a catalog id exactly", "why": "string (1-2 sentences, personalized)" }
   ]
-}`;
+}
+
+CATALOG (id · category · title — description):
+${libraryCatalogForPrompt()}`;
 
 const SSE_ENCODER = new TextEncoder();
 function sseEncode(obj: unknown): Uint8Array {
@@ -203,15 +216,33 @@ export async function POST(req: NextRequest) {
             return { ...r, month: m } as PlanMonth;
           });
 
-        const resourcesP = callSection<{ resources: PlanResource[] }>(
+        const resourcesP = callSection<{ picks: { id: string; why: string }[] }>(
           client,
           RESOURCES_PROMPT,
           baseInput,
           1200,
           "resources",
         ).then((r) => {
+          // id → 검증된 라이브러리 항목으로 매핑. unknown id는 조용히 drop.
+          // 모델이 만든 url은 응답에 절대 들어가지 않는다 — 서버가 라이브러리에서 가져옴.
+          const picks = Array.isArray(r?.picks) ? r.picks : [];
+          const resolved: PlanResource[] = [];
+          const seen = new Set<string>();
+          for (const pick of picks) {
+            if (!pick?.id || !pick?.why) continue;
+            if (seen.has(pick.id)) continue;
+            const item = findResource(pick.id);
+            if (!item) continue; // hallucinated id
+            seen.add(pick.id);
+            resolved.push({
+              title: item.title,
+              url: item.url,
+              why: pick.why,
+              source: item.source,
+            });
+          }
           emit({ type: "progress", section: "resources", phase: "done" });
-          return r;
+          return { resources: resolved };
         });
 
         const [framing, m1, m2, m3, resourcesObj] = await Promise.all([
