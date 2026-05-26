@@ -13,20 +13,8 @@ const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; la
   large:  { bg: 'var(--blue-soft)',   color: 'var(--blue)',   label: 'large' },
 };
 
-function readInitialPlan(): Plan | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = sessionStorage.getItem('nextStep.plan');
-    if (!raw) return null;
-    return JSON.parse(raw) as Plan;
-  } catch {
-    return null;
-  }
-}
-
 export default function PlanPage() {
   const router = useRouter();
-  const [plan] = useState<Plan | null>(readInitialPlan);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -34,8 +22,14 @@ export default function PlanPage() {
   const [loginPrompt, setLoginPrompt] = useState(false);
 
   useEffect(() => {
-    if (plan === null) router.replace('/next-step');
-  }, [plan, router]);
+    const raw = sessionStorage.getItem('nextStep.plan');
+    if (!raw) { router.replace('/next-step'); return; }
+    try {
+      setPlan(JSON.parse(raw) as Plan);
+    } catch {
+      router.replace('/next-step');
+    }
+  }, [router]);
 
   // 로그인 사용자면 결과를 DB에 자동 저장 (한 번만). 이전에 저장된 플랜이면 그 id로 표식.
   useEffect(() => {
@@ -169,7 +163,7 @@ export default function PlanPage() {
             className="font-serif leading-[1.4]"
             style={{ color: 'var(--ink)', fontSize: 'clamp(18px, 2.5vw, 22px)', fontStyle: 'italic' }}
           >
-            &ldquo;{plan.coreInsight}&rdquo;
+            "{plan.coreInsight}"
           </p>
         </div>
 

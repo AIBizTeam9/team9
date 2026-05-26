@@ -5,18 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Persona } from '@/lib/types';
 
-function readInitialPersonas(): Persona[] | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const rawPersonas = sessionStorage.getItem('nextStep.personas');
-    const rawAnswers = sessionStorage.getItem('nextStep.answers');
-    if (!rawPersonas || !rawAnswers) return null;
-    const parsed: unknown = JSON.parse(rawPersonas);
-    if (!Array.isArray(parsed) || parsed.length !== 4) return null;
-    return parsed as Persona[];
-  } catch {
-    return null;
-  }
 // 페르소나 카드의 캐릭터 아바타 — Dicebear fun-emoji 스타일.
 // 페르소나 이름을 시드로 deterministic하게 귀여운 SVG 캐릭터 생성됨.
 const AVATAR_BG = ['fbe5d6', 'd6e8fb', 'd6fbe5', 'f0ecf9']; // warm/blue/green/violet soft
@@ -33,13 +21,31 @@ function avatarUrl(seed: string, bgHex: string): string {
 
 export default function PersonasPage() {
   const router = useRouter();
-  const [personas] = useState<Persona[] | null>(readInitialPersonas);
+  const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [shakingIndex, setShakingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (personas === null) router.replace('/next-step/quiz');
-  }, [personas, router]);
+    try {
+      const rawPersonas = sessionStorage.getItem('nextStep.personas');
+      const rawAnswers = sessionStorage.getItem('nextStep.answers');
+
+      if (!rawPersonas || !rawAnswers) {
+        router.replace('/next-step/quiz');
+        return;
+      }
+
+      const parsed = JSON.parse(rawPersonas);
+      if (!Array.isArray(parsed) || parsed.length !== 4) {
+        router.replace('/next-step/quiz');
+        return;
+      }
+
+      setPersonas(parsed as Persona[]);
+    } catch {
+      router.replace('/next-step/quiz');
+    }
+  }, [router]);
 
   function handleCardClick(i: number) {
     if (selectedIndices.includes(i)) {

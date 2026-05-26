@@ -43,13 +43,6 @@ export default function VoiceChat({
   const [streamingText, setStreamingText] = useState<string>(""); // 현재 스트리밍 중인 어시스턴트 텍스트
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [supported] = useState<{ tts: boolean; stt: boolean }>(() => {
-    if (typeof window === "undefined") return { tts: false, stt: false };
-    return {
-      tts: !!window.speechSynthesis,
-      stt: !!getSpeechRecognition(),
-    };
-  });
   const [started, setStarted] = useState(false);
   const [activeAnalyser, setActiveAnalyser] =
     useState<AnalyserNode | null>(null);
@@ -57,13 +50,6 @@ export default function VoiceChat({
   // refs (이벤트 핸들러에서 최신 값 접근하려고)
   const statusRef = useRef<Status>("idle");
   useEffect(() => {
-    if (supported.tts) {
-      const apply = () => {
-        voiceRef.current = pickKoreanVoice();
-      };
-      apply();
-      window.speechSynthesis.onvoiceschanged = apply;
-    }
     statusRef.current = status;
   }, [status]);
   const messagesRef = useRef<VoiceMessage[]>([]);
@@ -85,7 +71,6 @@ export default function VoiceChat({
     return () => {
       cleanupAll();
     };
-  }, [supported.tts]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
