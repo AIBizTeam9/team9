@@ -1,13 +1,17 @@
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase";
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(nextPath?: string) {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase가 설정되지 않았습니다.");
+  const callback = new URL(`${window.location.origin}/auth/callback`);
+  if (nextPath && nextPath.startsWith("/")) {
+    callback.searchParams.set("next", nextPath);
+  }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: callback.toString(),
     },
   });
   if (error) throw error;

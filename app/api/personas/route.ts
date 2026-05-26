@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid request body' }, { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 4 });
 
   let raw: string;
   try {

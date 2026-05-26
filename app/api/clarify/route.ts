@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 4 });
 
   let raw: string;
   try {

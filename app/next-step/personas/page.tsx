@@ -17,6 +17,18 @@ function readInitialPersonas(): Persona[] | null {
   } catch {
     return null;
   }
+// 페르소나 카드의 캐릭터 아바타 — Dicebear fun-emoji 스타일.
+// 페르소나 이름을 시드로 deterministic하게 귀여운 SVG 캐릭터 생성됨.
+const AVATAR_BG = ['fbe5d6', 'd6e8fb', 'd6fbe5', 'f0ecf9']; // warm/blue/green/violet soft
+const AVATAR_RING = ['var(--warm)', 'var(--blue)', 'var(--green)', '#9b86c5'];
+
+function avatarUrl(seed: string, bgHex: string): string {
+  const params = new URLSearchParams({
+    seed,
+    backgroundColor: bgHex,
+    radius: '50',
+  });
+  return `https://api.dicebear.com/9.x/fun-emoji/svg?${params.toString()}`;
 }
 
 export default function PersonasPage() {
@@ -124,7 +136,7 @@ export default function PersonasPage() {
                 {/* Coral checkmark dot — visible when selected */}
                 {selected && (
                   <span
-                    className="absolute top-4 right-4 flex items-center justify-center w-5 h-5 rounded-full"
+                    className="absolute top-4 right-4 flex items-center justify-center w-5 h-5 rounded-full z-10"
                     style={{ background: 'var(--warm)' }}
                     aria-hidden="true"
                   >
@@ -139,6 +151,23 @@ export default function PersonasPage() {
                     </svg>
                   </span>
                 )}
+
+                {/* Avatar — Dicebear fun-emoji 캐릭터 (페르소나 이름 시드) */}
+                <div className="mb-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatarUrl(persona.name, AVATAR_BG[i % AVATAR_BG.length])}
+                    alt=""
+                    width={96}
+                    height={96}
+                    className="rounded-full"
+                    style={{
+                      display: 'block',
+                      border: `3px solid ${AVATAR_RING[i % AVATAR_RING.length]}`,
+                      background: `#${AVATAR_BG[i % AVATAR_BG.length]}`,
+                    }}
+                  />
+                </div>
 
                 {/* Name */}
                 <h2
