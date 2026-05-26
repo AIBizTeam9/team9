@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Persona } from '@/lib/types';
 
-// 페르소나 카드의 캐릭터 아바타 — Dicebear fun-emoji 스타일.
-// 페르소나 이름을 시드로 deterministic하게 귀여운 SVG 캐릭터 생성됨.
+// 페르소나 카드의 캐릭터 아바타 — DiceBear notionists 스타일.
+// 페르소나 이름을 시드로 deterministic하게 일러스트 캐릭터 생성됨.
 const AVATAR_BG = ['fbe5d6', 'd6e8fb', 'd6fbe5', 'f0ecf9']; // warm/blue/green/violet soft
 const AVATAR_RING = ['var(--warm)', 'var(--blue)', 'var(--green)', '#9b86c5'];
 
@@ -16,7 +16,7 @@ function avatarUrl(seed: string, bgHex: string): string {
     backgroundColor: bgHex,
     radius: '50',
   });
-  return `https://api.dicebear.com/9.x/fun-emoji/svg?${params.toString()}`;
+  return `https://api.dicebear.com/9.x/notionists/svg?${params.toString()}`;
 }
 
 export default function PersonasPage() {
