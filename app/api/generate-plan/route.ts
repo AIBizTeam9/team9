@@ -1,10 +1,20 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { Answers, Persona, Plan, PlanMonth, PlanResource } from "@/lib/types";
+import { checkBodySize, checkRateLimit } from "@/lib/rate-limit";
 import {
   findResource,
   libraryCatalogForPrompt,
 } from "@/lib/nextstep/resource-library";
+
+// 가장 비싼 라우트 (병렬 5개 Claude 호출). 가장 엄격하게 제한.
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 10분
+
+// Claude 호출 전에 input 사이즈 가드. 모델별 max_tokens는 prompt에서 처리.
+const MAX_ANSWER_KEYS = 60;        // 퀴즈는 15문항 + follow-ups. 60이면 충분히 여유.
+const MAX_ANSWER_VALUE_LEN = 2000; // 한 답변 본문 상한.
+const MAX_PERSONA_FIELD_LEN = 800; // 페르소나 필드 한 줄 상한.
 
 // 5개 병렬 Claude 호출로 분할 — 한 번의 거대 호출이 60초를 넘기는 문제를 회피.
 // 각 호출은 output 1500~2000 토큰으로 작아 8~12초에 끝남.
@@ -112,6 +122,24 @@ async function callSection<T>(
 }
 
 export async function POST(req: NextRequest) {
+  // Body size 가드 (Claude 호출 전, 가장 싼 가드부터).
+  const sizeBlock = checkBodySize(req);
+  if (sizeBlock && !sizeBlock.ok) {
+    return NextResponse.json(
+      { error: "payload_too_large" },
+      { status: 413 },
+    );
+  }
+
+  // Rate limit: 가장 비싼 라우트라 가장 엄격.
+  const rl = checkRateLimit(req, "generate-plan", RATE_LIMIT, RATE_WINDOW_MS);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterSec: rl.retryAfterSec },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 500 });
@@ -126,6 +154,22 @@ export async function POST(req: NextRequest) {
         { error: 'missing or invalid "answers" field' },
         { status: 400 },
       );
+    }
+    // answers 크기/내용 가드 — Claude 호출 비용을 한 번에 폭증시키지 않도록.
+    const answerKeys = Object.keys(body.answers as Record<string, unknown>);
+    if (answerKeys.length > MAX_ANSWER_KEYS) {
+      return NextResponse.json(
+        { error: "too many answer fields" },
+        { status: 400 },
+      );
+    }
+    for (const [, v] of Object.entries(body.answers as Record<string, unknown>)) {
+      if (typeof v === "string" && v.length > MAX_ANSWER_VALUE_LEN) {
+        return NextResponse.json(
+          { error: "an answer value is too long" },
+          { status: 400 },
+        );
+      }
     }
     if (!Array.isArray(body.personas) || body.personas.length !== 2) {
       return NextResponse.json(
@@ -145,6 +189,15 @@ export async function POST(req: NextRequest) {
           { error: "each persona must have all 5 non-empty fields" },
           { status: 400 },
         );
+      }
+      // 각 필드 길이 가드.
+      for (const k of ["name", "coreBelief", "keyFear", "strongestArgument", "communicationStyle"] as const) {
+        if ((p[k] as string).length > MAX_PERSONA_FIELD_LEN) {
+          return NextResponse.json(
+            { error: `persona.${k} too long` },
+            { status: 400 },
+          );
+        }
       }
     }
     answers = body.answers as Answers;

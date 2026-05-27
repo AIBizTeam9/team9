@@ -92,7 +92,15 @@ export default function LoadingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
       })
-        .then((res) => {
+        .then(async (res) => {
+          if (res.status === 429) {
+            const body = (await res.json().catch(() => ({}))) as { retryAfterSec?: number };
+            throw new Error(
+              `잠시 후 다시 시도해 주세요. (요청이 너무 많습니다 — 약 ${
+                body.retryAfterSec ?? 600
+              }초 뒤에 다시 시도 가능)`,
+            );
+          }
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
         })
@@ -100,8 +108,14 @@ export default function LoadingPage() {
           sessionStorage.setItem('nextStep.personas', JSON.stringify(data.personas));
           router.replace('/next-step/personas');
         })
-        .catch(() => {
-          router.replace('/next-step/quiz?error=1');
+        .catch((err) => {
+          // 429는 사용자에게 친절히 안내, 그 외는 종전대로 quiz로 보낸다.
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.startsWith('잠시 후')) {
+            setErrorMsg(msg);
+          } else {
+            router.replace('/next-step/quiz?error=1');
+          }
         });
     } else {
       // Second pass: generate plan from selected personas
@@ -175,6 +189,14 @@ export default function LoadingPage() {
             body: JSON.stringify({ answers, personas: selectedPersonas }),
           });
           httpStatus = res.status;
+          if (res.status === 429) {
+            const body = (await res.json().catch(() => ({}))) as { retryAfterSec?: number };
+            throw new Error(
+              `잠시 후 다시 시도해 주세요. (요청이 너무 많습니다 — 약 ${
+                body.retryAfterSec ?? 600
+              }초 뒤에 다시 시도 가능)`,
+            );
+          }
           if (!res.ok || !res.body) {
             const body = (await res.json().catch(() => ({}))) as { error?: string };
             throw new Error(body.error ?? `HTTP ${res.status}`);
