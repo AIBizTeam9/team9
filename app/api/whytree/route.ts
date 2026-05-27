@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { ChatMessage, WhyTree } from "@/lib/whytree/types";
 import { applyTool, treeForLLM } from "@/lib/whytree/tree-ops";
 import { WHYTREE_SYSTEM_PROMPT, WHYTREE_TOOLS } from "@/lib/whytree/prompt";
+import { experimentalEnabled } from "@/lib/feature-flags";
 
 interface WhyTreeRequest {
   messages: ChatMessage[];
@@ -44,6 +45,9 @@ function demoStream(tree: WhyTree): ReadableStream<Uint8Array> {
 }
 
 export async function POST(request: NextRequest) {
+  if (!experimentalEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   try {
     const { messages, tree } = (await request.json()) as WhyTreeRequest;
 

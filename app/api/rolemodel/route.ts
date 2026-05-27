@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { experimentalEnabled } from "@/lib/feature-flags";
 
 interface RoleModelRequest {
   situation: string;
@@ -17,6 +18,9 @@ interface RoleModelResponse {
 }
 
 export async function POST(request: NextRequest) {
+  if (!experimentalEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   try {
     const { situation, goals, decision } = (await request.json()) as RoleModelRequest;
 
