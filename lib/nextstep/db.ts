@@ -99,7 +99,7 @@ export function computeStreak(journal: Journal, todayISO: string = localDateKey(
   if (Object.keys(journal).length === 0) return 0;
   const today = new Date(`${todayISO}T00:00:00`);
   const hasToday = !!journal[todayISO];
-  let cursor = new Date(today);
+  const cursor = new Date(today);
   if (!hasToday) cursor.setDate(cursor.getDate() - 1); // 오늘 안 썼으면 어제부터 카운트
   let count = 0;
   while (true) {
