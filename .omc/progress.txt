@@ -1,0 +1,13 @@
+# Ralph progress log — i18n + language toggle on dongkeun
+
+baseline HEAD: 65e937013fa0282d4f95230d343887b5947a6689
+task: Add EN|KO language toggle + bilingual user-facing UI; default ko; persist via cookie.
+
+## Iteration 1 — Foundation + Dictionaries (US-001 + US-002)
+
+Plan:
+- Read a184f6c^ for English source of truth
+- Read current pages for Korean source of truth
+- Author lib/i18n.ts (LocaleProvider + useLocale + t + cookie helpers)
+- Author lib/dictionaries/ko.ts + en.ts with shared key namespace
+- Verify: tsc compiles, no build run yet (still WIP)
