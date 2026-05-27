@@ -7,10 +7,17 @@ import type { User } from "@supabase/supabase-js";
 import PlanView from "@/components/nextstep/plan-view";
 import { getUser, onAuthChange } from "@/lib/auth";
 import {
+  computeStreak,
+  daysSinceLastEntry,
   deletePlan,
+  getJournal,
   getPlan,
+  localDateKey,
   progressStats,
   updatePlanProgress,
+  upsertJournalEntry,
+  type Journal,
+  type JournalEntry,
   type PlanProgress,
   type PlanProgressEntry,
   type SavedPlan,
@@ -111,6 +118,19 @@ export default function PlanDetailPage({
     });
   };
 
+  // 저널 저장 — 같은 progress 컬럼의 reserved 슬롯에 들어간다. 디바운스 없이 즉시 저장
+  // (사용자가 명시적으로 Save 버튼을 누르는 흐름이라 debounce 불필요).
+  const handleJournalSave = async (next: { body: string; mood?: number }) => {
+    if (!user || !plan) return;
+    const todayISO = localDateKey();
+    const updated = upsertJournalEntry(progress, todayISO, next);
+    setProgress(updated);
+    setSaveState("saving");
+    const result = await updatePlanProgress(user.id, plan.id, updated);
+    setSaveState(result.ok ? "saved" : "error");
+    if (result.ok) setTimeout(() => setSaveState("idle"), 1500);
+  };
+
   useEffect(
     () => () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -198,13 +218,18 @@ export default function PlanDetailPage({
           {formatFull(plan.created_at)}에 만들어진 플랜
         </p>
 
-        {/* Progress 헤더 */}
+        {/* Progress 헤더 — streak 칩 포함 */}
         <ProgressHeader plan={plan} progress={progress} saveState={saveState} />
+
+        {/* 일일 저널: 오늘의 한 줄 + mood + 지난 14일 sparkline + 타임라인 */}
+        <JournalSection progress={progress} onSave={handleJournalSave} />
 
         <PlanView
           plan={plan.plan}
           progress={progress}
           onProgressChange={handleProgressChange}
+          startDate={new Date(plan.created_at)}
+          planId={plan.id}
         />
 
         {plan.personas && plan.personas.length > 0 && (
@@ -280,6 +305,8 @@ function ProgressHeader({
     0,
   );
   const { doneCount, noteCount, pct } = progressStats(progress, totalActions);
+  const journal = getJournal(progress);
+  const streak = computeStreak(journal);
 
   const statusLabel =
     saveState === "saving"
@@ -321,6 +348,18 @@ function ProgressHeader({
                 · 리뷰 {noteCount}개
               </span>
             )}
+            {streak > 0 && (
+              <span
+                className="ml-2 inline-flex items-center gap-1 text-[12px] font-sans px-2 py-0.5 rounded-full align-middle"
+                style={{
+                  background: "var(--warm-soft)",
+                  color: "var(--warm)",
+                }}
+                title="연속 작성 일수"
+              >
+                ✦ {streak}일 연속
+              </span>
+            )}
           </p>
         </div>
         {statusLabel && (
@@ -350,5 +389,330 @@ function ProgressHeader({
         매주 또는 행동 하나 완수할 때마다 체크박스를 누르고, 카드를 펼쳐 짧은 리뷰를 남기세요. 자동 저장됩니다.
       </p>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Journal — 일일 체크인 + 14일 sparkline + 타임라인 + 부드러운 nudge
+ * ──────────────────────────────────────────────────────────── */
+
+function JournalSection({
+  progress,
+  onSave,
+}: {
+  progress: PlanProgress;
+  onSave: (next: { body: string; mood?: number }) => Promise<void>;
+}) {
+  const journal = getJournal(progress);
+  const todayISO = localDateKey();
+  const existingToday = journal[todayISO];
+  const lastGapDays = daysSinceLastEntry(journal); // null이면 한 번도 안 씀
+
+  const [body, setBody] = useState(existingToday?.body ?? "");
+  const [mood, setMood] = useState<number | undefined>(existingToday?.mood);
+  const [submitting, setSubmitting] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  // 다른 곳(예: action 노트 저장)으로 progress가 바뀌면 textarea 기준값도 맞춰준다.
+  // 단, 사용자가 지금 타이핑 중이면 덮어쓰지 않도록 mount-time prefill만 신뢰.
+  // → 별도 effect 없이 초기 state로 충분.
+
+  const canSave = body.trim().length > 0 && !submitting;
+  const handleClick = async () => {
+    if (!canSave) return;
+    setSubmitting(true);
+    try {
+      await onSave({ body: body.trim(), mood });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mb-10">
+      {/* Nudge — 마지막 작성일이 2일 이상 지났을 때만 노출 */}
+      {lastGapDays !== null && lastGapDays > 1 && (
+        <div
+          className="rounded-2xl p-4 mb-4 flex items-start gap-3"
+          style={{
+            background: "var(--warm-soft)",
+            border: "1px solid var(--warm)",
+          }}
+        >
+          <span
+            className="font-serif text-[18px] leading-none"
+            style={{ color: "var(--warm)" }}
+            aria-hidden
+          >
+            ✦
+          </span>
+          <div>
+            <p
+              className="text-[13px] font-medium mb-0.5"
+              style={{ color: "var(--ink)" }}
+            >
+              {lastGapDays}일째 잠잠하네요.
+            </p>
+            <p
+              className="text-[12px] leading-relaxed"
+              style={{ color: "var(--ink-2)" }}
+            >
+              한 줄이라도 좋아요 — 오늘 무엇을 했는지 남겨두면 연속 기록이 이어집니다.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 작성 카드 */}
+      <div
+        className="rounded-2xl p-5"
+        style={{
+          background: "var(--bg-2)",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <p
+              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-1"
+              style={{ color: "var(--ink-3)" }}
+            >
+              오늘의 체크인
+            </p>
+            <p
+              className="font-serif text-[18px] tracking-[-0.01em]"
+              style={{ color: "var(--ink)" }}
+            >
+              {existingToday ? "오늘의 기록을 다듬는 중" : "오늘 무엇을 했나요?"}
+            </p>
+          </div>
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+            {todayISO}
+          </span>
+        </div>
+
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="한 줄이어도 좋아요. 무엇을 했고, 무엇을 안 했고, 어떤 기분이었는지."
+          rows={4}
+          className="w-full p-3 rounded-xl outline-none text-[14px] leading-relaxed resize-y"
+          style={{
+            background: "var(--bg)",
+            border: "1px solid var(--line)",
+            color: "var(--ink)",
+            minHeight: 96,
+          }}
+        />
+
+        <div className="flex items-center justify-between mt-3 flex-wrap gap-3">
+          <MoodPicker mood={mood} onChange={setMood} />
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={!canSave}
+            className="px-4 py-1.5 rounded-full text-[12px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: "var(--ink)", color: "var(--bg)" }}
+          >
+            {submitting ? "저장 중…" : existingToday ? "오늘 기록 업데이트" : "저장"}
+          </button>
+        </div>
+
+        {/* 14일 sparkline */}
+        <div className="mt-5 pt-4" style={{ borderTop: "1px dashed var(--line)" }}>
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+            style={{ color: "var(--ink-3)" }}
+          >
+            지난 14일
+          </p>
+          <Sparkline journal={journal} todayISO={todayISO} />
+        </div>
+      </div>
+
+      {/* 타임라인 — 첫 5개만 보이고, 더 있으면 펼치기 */}
+      {Object.keys(journal).length > 0 && (
+        <JournalTimeline journal={journal} showAll={showAll} onToggle={() => setShowAll((s) => !s)} />
+      )}
+    </div>
+  );
+}
+
+function MoodPicker({
+  mood,
+  onChange,
+}: {
+  mood: number | undefined;
+  onChange: (next: number | undefined) => void;
+}) {
+  const LABELS = ["😔", "😕", "😐", "🙂", "😄"];
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+        기분
+      </span>
+      {LABELS.map((label, i) => {
+        const value = i + 1;
+        const selected = mood === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(selected ? undefined : value)}
+            aria-label={`mood ${value}`}
+            className="w-7 h-7 rounded-full transition-transform text-[14px] leading-none flex items-center justify-center"
+            style={{
+              background: selected ? "var(--warm-soft)" : "transparent",
+              border: selected ? "1px solid var(--warm)" : "1px solid var(--line)",
+              transform: selected ? "scale(1.06)" : "scale(1)",
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Sparkline({
+  journal,
+  todayISO,
+}: {
+  journal: Journal;
+  todayISO: string;
+}) {
+  // 14일 슬롯, 가장 오래된 → 오늘 순. 각 날짜에 entry가 있으면 mood(없으면 1)를 막대 높이로.
+  const today = new Date(`${todayISO}T00:00:00`);
+  const slots: { date: string; value: number }[] = [];
+  for (let i = 13; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = localDateKey(d);
+    const entry = journal[key];
+    slots.push({
+      date: key,
+      value: entry ? (entry.mood ?? 3) : 0,
+    });
+  }
+  const max = 5;
+  const barW = 10;
+  const gap = 4;
+  const h = 36;
+  const width = slots.length * (barW + gap) - gap;
+  return (
+    <svg
+      role="img"
+      aria-label="지난 14일간의 일일 기록"
+      width={width}
+      height={h}
+      viewBox={`0 0 ${width} ${h}`}
+      style={{ display: "block" }}
+    >
+      {slots.map((s, i) => {
+        const x = i * (barW + gap);
+        const barH = s.value === 0 ? 2 : Math.max(2, Math.round((s.value / max) * h));
+        const y = h - barH;
+        const isToday = s.date === todayISO;
+        const empty = s.value === 0;
+        return (
+          <rect
+            key={s.date}
+            x={x}
+            y={y}
+            width={barW}
+            height={barH}
+            rx={2}
+            fill={empty ? "var(--line)" : "var(--warm)"}
+            opacity={empty ? 0.6 : 1}
+            stroke={isToday ? "var(--ink)" : "none"}
+            strokeWidth={isToday ? 1 : 0}
+          >
+            <title>{`${s.date}${empty ? " · 기록 없음" : ` · mood ${s.value}`}`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
+function JournalTimeline({
+  journal,
+  showAll,
+  onToggle,
+}: {
+  journal: Journal;
+  showAll: boolean;
+  onToggle: () => void;
+}) {
+  // 최신순 정렬 (YYYY-MM-DD는 사전순 정렬 = 시간순 정렬과 일치)
+  const dates = Object.keys(journal).sort().reverse();
+  const visible = showAll ? dates : dates.slice(0, 5);
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-baseline justify-between mb-3">
+        <p
+          className="text-[11px] font-medium tracking-[0.08em] uppercase"
+          style={{ color: "var(--ink-3)" }}
+        >
+          지난 기록
+        </p>
+        {dates.length > 5 && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="text-[12px] transition-opacity hover:opacity-70"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {showAll ? "접기" : `+${dates.length - 5}개 더 보기`}
+          </button>
+        )}
+      </div>
+
+      <ol className="flex flex-col gap-2">
+        {visible.map((date) => {
+          const entry = journal[date];
+          return <JournalRow key={date} date={date} entry={entry} />;
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function JournalRow({ date, entry }: { date: string; entry: JournalEntry }) {
+  const MOOD_LABEL = ["", "😔", "😕", "😐", "🙂", "😄"];
+  return (
+    <li
+      className="rounded-xl p-3 flex gap-3"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--line)",
+      }}
+    >
+      <div
+        className="shrink-0 text-[11px] tabular-nums pt-0.5"
+        style={{ color: "var(--ink-3)", minWidth: 84 }}
+      >
+        {date}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[13px] leading-relaxed whitespace-pre-wrap"
+          style={{ color: "var(--ink-2)" }}
+        >
+          {entry.body}
+        </p>
+      </div>
+      {entry.mood && (
+        <div
+          className="shrink-0 text-[14px] leading-none pt-0.5"
+          aria-label={`mood ${entry.mood}`}
+          title={`mood ${entry.mood}`}
+        >
+          {MOOD_LABEL[entry.mood] ?? ""}
+        </div>
+      )}
+    </li>
   );
 }

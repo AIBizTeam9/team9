@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { experimentalEnabled } from "@/lib/feature-flags";
 
 /**
  * 미래의 나에게 편지 — API stub.
@@ -19,6 +20,9 @@ type LetterPayload = {
 const ALLOWED_WINDOWS = new Set(["30d", "90d", "180d", "365d"]);
 
 export async function POST(request: Request) {
+  if (!experimentalEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   let body: LetterPayload = {};
   try {
     body = (await request.json()) as LetterPayload;
@@ -63,6 +67,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  if (!experimentalEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   return NextResponse.json({
     letters: [],
     note: "API stub — 현재는 클라이언트 localStorage에서 표시. DB 연동 후 여기서 반환 예정.",

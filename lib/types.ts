@@ -17,6 +17,7 @@ export type PlanResource = {
   title: string;
   url: string;
   why: string;
+  source?: string; // 검증된 라이브러리에서 가져왔을 때만 채워진다 ("출처: 인프런" 등)
 };
 
 export type Plan = {
@@ -38,4 +39,13 @@ export type Persona = {
 
 export type PersonasResponse = {
   personas: Persona[]; // exactly 4
+};
+
+export type DebateTurn = {
+  speaker: string;  // must equal one of the two persona names
+  message: string;  // 1-3 sentences
+};
+
+export type DebateResponse = {
+  turns: DebateTurn[]; // ~12-18 turns, alternating speakers
 };

@@ -35,11 +35,12 @@ export default function MarketPage() {
   const [searchInput, setSearchInput] = useState("");
 
   // 개인화: 사용자가 클릭한 카드 누적치에서 미본 항목 추천 + ✓ 표시
-  const [viewed, setViewed] = useState<Set<string>>(new Set());
+  const [viewed, setViewed] = useState<Set<string>>(() =>
+    typeof window === "undefined" ? new Set() : viewedIdSet("market"),
+  );
   const [activityVersion, setActivityVersion] = useState(0);
 
   useEffect(() => {
-    setViewed(viewedIdSet("market"));
     const unsub = subscribeActivityChanges("market", () => {
       setViewed(viewedIdSet("market"));
       setActivityVersion((v) => v + 1);
@@ -64,22 +65,25 @@ export default function MarketPage() {
     fetchMarketData().then(setAllItems).catch(() => {});
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const cat = activeCategory === "all" ? undefined : activeCategory;
-      const data = await fetchMarketData(cat, keyword || undefined);
-      setItems(data);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeCategory, keyword]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      try {
+        const cat = activeCategory === "all" ? undefined : activeCategory;
+        const data = await fetchMarketData(cat, keyword || undefined);
+        if (!cancelled) setItems(data);
+      } catch {
+        if (!cancelled) setItems([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, keyword]);
 
   const onCardClick = useCallback((item: MarketItem) => {
     recordView("market", {

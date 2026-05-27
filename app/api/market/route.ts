@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { experimentalEnabled } from "@/lib/feature-flags";
 
 interface MarketDataItem {
   id: string;
@@ -45,6 +46,9 @@ const MARKET_DATA: MarketDataItem[] = [
 ];
 
 export async function GET(request: NextRequest) {
+  if (!experimentalEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const { searchParams } = request.nextUrl;
   const category = searchParams.get("category");
   const keyword = searchParams.get("keyword");

@@ -1,6 +1,20 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { Answers, Persona, Plan, PlanMonth, PlanResource } from "@/lib/types";
+import { checkBodySize, checkRateLimit } from "@/lib/rate-limit";
+import {
+  findResource,
+  libraryCatalogForPrompt,
+} from "@/lib/nextstep/resource-library";
+
+// 가장 비싼 라우트 (병렬 5개 Claude 호출). 가장 엄격하게 제한.
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 10분
+
+// Claude 호출 전에 input 사이즈 가드. 모델별 max_tokens는 prompt에서 처리.
+const MAX_ANSWER_KEYS = 60;        // 퀴즈는 15문항 + follow-ups. 60이면 충분히 여유.
+const MAX_ANSWER_VALUE_LEN = 2000; // 한 답변 본문 상한.
+const MAX_PERSONA_FIELD_LEN = 800; // 페르소나 필드 한 줄 상한.
 
 // 5개 병렬 Claude 호출로 분할 — 한 번의 거대 호출이 60초를 넘기는 문제를 회피.
 // 각 호출은 output 1500~2000 토큰으로 작아 8~12초에 끝남.
@@ -49,18 +63,27 @@ Schema:
   ]
 }`;
 
-const RESOURCES_PROMPT = `You are a career and life coach. Given a user's quiz answers and two personas, produce 3-5 specific resources.
+// 환각된 URL을 차단하기 위해 모델은 카탈로그에서 id를 "선택"만 한다.
+// URL은 서버가 라이브러리에서 직접 가져온다 — 모델은 url 필드를 만들지 않는다.
+const RESOURCES_PROMPT = `You are a career and life coach. Given a user's quiz answers, two personas, and a CATALOG of verified resources, pick the 3-5 MOST relevant items for this specific user.
 
 ${COMMON_RULES}
 
-Hard rule: Only cite well-known sites with real, working URLs (Harvard Business Review, Coursera, NYT, MIT OCW, official org pages). Never invent URLs.
+Hard rules for resources:
+- You may ONLY return ids that appear in the catalog below — character-for-character.
+- Do NOT invent ids, urls, or titles. Do not paraphrase ids.
+- Each "why" must be 1-2 sentences specific to THIS user (reference their stuck/desiredChange/feelsAlive, or one of the personas by name). Generic reasons ("good for learning") are rejected.
+- Pick a mix across categories when relevant (jobs / courses / books / communities / trends), not 5 books.
 
 Schema:
 {
-  "resources": [
-    { "title": "string", "url": "string", "why": "string (1-2 sentences)" }
+  "picks": [
+    { "id": "string — must match a catalog id exactly", "why": "string (1-2 sentences, personalized)" }
   ]
-}`;
+}
+
+CATALOG (id · category · title — description):
+${libraryCatalogForPrompt()}`;
 
 const SSE_ENCODER = new TextEncoder();
 function sseEncode(obj: unknown): Uint8Array {
@@ -99,6 +122,24 @@ async function callSection<T>(
 }
 
 export async function POST(req: NextRequest) {
+  // Body size 가드 (Claude 호출 전, 가장 싼 가드부터).
+  const sizeBlock = checkBodySize(req);
+  if (sizeBlock && !sizeBlock.ok) {
+    return NextResponse.json(
+      { error: "payload_too_large" },
+      { status: 413 },
+    );
+  }
+
+  // Rate limit: 가장 비싼 라우트라 가장 엄격.
+  const rl = checkRateLimit(req, "generate-plan", RATE_LIMIT, RATE_WINDOW_MS);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterSec: rl.retryAfterSec },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 500 });
@@ -113,6 +154,22 @@ export async function POST(req: NextRequest) {
         { error: 'missing or invalid "answers" field' },
         { status: 400 },
       );
+    }
+    // answers 크기/내용 가드 — Claude 호출 비용을 한 번에 폭증시키지 않도록.
+    const answerKeys = Object.keys(body.answers as Record<string, unknown>);
+    if (answerKeys.length > MAX_ANSWER_KEYS) {
+      return NextResponse.json(
+        { error: "too many answer fields" },
+        { status: 400 },
+      );
+    }
+    for (const [, v] of Object.entries(body.answers as Record<string, unknown>)) {
+      if (typeof v === "string" && v.length > MAX_ANSWER_VALUE_LEN) {
+        return NextResponse.json(
+          { error: "an answer value is too long" },
+          { status: 400 },
+        );
+      }
     }
     if (!Array.isArray(body.personas) || body.personas.length !== 2) {
       return NextResponse.json(
@@ -132,6 +189,15 @@ export async function POST(req: NextRequest) {
           { error: "each persona must have all 5 non-empty fields" },
           { status: 400 },
         );
+      }
+      // 각 필드 길이 가드.
+      for (const k of ["name", "coreBelief", "keyFear", "strongestArgument", "communicationStyle"] as const) {
+        if ((p[k] as string).length > MAX_PERSONA_FIELD_LEN) {
+          return NextResponse.json(
+            { error: `persona.${k} too long` },
+            { status: 400 },
+          );
+        }
       }
     }
     answers = body.answers as Answers;
@@ -203,15 +269,33 @@ export async function POST(req: NextRequest) {
             return { ...r, month: m } as PlanMonth;
           });
 
-        const resourcesP = callSection<{ resources: PlanResource[] }>(
+        const resourcesP = callSection<{ picks: { id: string; why: string }[] }>(
           client,
           RESOURCES_PROMPT,
           baseInput,
           1200,
           "resources",
         ).then((r) => {
+          // id → 검증된 라이브러리 항목으로 매핑. unknown id는 조용히 drop.
+          // 모델이 만든 url은 응답에 절대 들어가지 않는다 — 서버가 라이브러리에서 가져옴.
+          const picks = Array.isArray(r?.picks) ? r.picks : [];
+          const resolved: PlanResource[] = [];
+          const seen = new Set<string>();
+          for (const pick of picks) {
+            if (!pick?.id || !pick?.why) continue;
+            if (seen.has(pick.id)) continue;
+            const item = findResource(pick.id);
+            if (!item) continue; // hallucinated id
+            seen.add(pick.id);
+            resolved.push({
+              title: item.title,
+              url: item.url,
+              why: pick.why,
+              source: item.source,
+            });
+          }
           emit({ type: "progress", section: "resources", phase: "done" });
-          return r;
+          return { resources: resolved };
         });
 
         const [framing, m1, m2, m3, resourcesObj] = await Promise.all([

@@ -1,11 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { Persona, Answers } from "@/lib/types";
+import { checkBodySize, checkRateLimit } from "@/lib/rate-limit";
 
 // 두 페르소나의 짧은 4턴 토론을 생성. Haiku 4.5로 빠르게 (~2~3초).
 // 시연 임팩트용 — 90일 플랜 로딩 중에 사용자가 읽을 수 있게.
 
 export const maxDuration = 30;
+
+// Haiku 호출 1번 — 비교적 싸지만 abuse 막아두자.
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const MAX_PERSONA_FIELD_LEN = 800;
+const MAX_CONTEXT_KEYS = 60;
+const MAX_CONTEXT_VALUE_LEN = 2000;
 
 const SYSTEM_PROMPT = `You are simulating an urgent, deepening debate between two future-self personas of the same user. They argue over what the user should do next.
 
@@ -56,6 +64,19 @@ function fallbackDebate(personas: Persona[]): DebateResponse {
 }
 
 export async function POST(req: NextRequest) {
+  const sizeBlock = checkBodySize(req);
+  if (sizeBlock && !sizeBlock.ok) {
+    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
+  }
+
+  const rl = checkRateLimit(req, "persona-debate", RATE_LIMIT, RATE_WINDOW_MS);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterSec: rl.retryAfterSec },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   let personas: Persona[];
@@ -67,6 +88,28 @@ export async function POST(req: NextRequest) {
         { error: '"personas" must be an array of exactly 2' },
         { status: 400 },
       );
+    }
+    for (const p of body.personas) {
+      for (const k of ["name", "coreBelief", "keyFear", "strongestArgument", "communicationStyle"] as const) {
+        const v = p?.[k];
+        if (typeof v === "string" && v.length > MAX_PERSONA_FIELD_LEN) {
+          return NextResponse.json(
+            { error: `persona.${k} too long` },
+            { status: 400 },
+          );
+        }
+      }
+    }
+    if (body.userContext && typeof body.userContext === "object") {
+      const ctxKeys = Object.keys(body.userContext as Record<string, unknown>);
+      if (ctxKeys.length > MAX_CONTEXT_KEYS) {
+        return NextResponse.json({ error: "too many context fields" }, { status: 400 });
+      }
+      for (const [, v] of Object.entries(body.userContext as Record<string, unknown>)) {
+        if (typeof v === "string" && v.length > MAX_CONTEXT_VALUE_LEN) {
+          return NextResponse.json({ error: "a context value is too long" }, { status: 400 });
+        }
+      }
     }
     personas = body.personas as Persona[];
     userContext = (body.userContext ?? {}) as Partial<Answers>;
