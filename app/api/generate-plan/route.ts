@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Answers, Persona, Plan, PlanMonth, PlanResource } from "@/lib/types";
 import { checkBodySize, checkRateLimit } from "@/lib/rate-limit";
 import {
-  findResource,
   libraryCatalogForPrompt,
+  resolvePicks,
 } from "@/lib/nextstep/resource-library";
 
 // 가장 비싼 라우트 (병렬 5개 Claude 호출). 가장 엄격하게 제한.
@@ -276,24 +276,9 @@ export async function POST(req: NextRequest) {
           1200,
           "resources",
         ).then((r) => {
-          // id → 검증된 라이브러리 항목으로 매핑. unknown id는 조용히 drop.
-          // 모델이 만든 url은 응답에 절대 들어가지 않는다 — 서버가 라이브러리에서 가져옴.
-          const picks = Array.isArray(r?.picks) ? r.picks : [];
-          const resolved: PlanResource[] = [];
-          const seen = new Set<string>();
-          for (const pick of picks) {
-            if (!pick?.id || !pick?.why) continue;
-            if (seen.has(pick.id)) continue;
-            const item = findResource(pick.id);
-            if (!item) continue; // hallucinated id
-            seen.add(pick.id);
-            resolved.push({
-              title: item.title,
-              url: item.url,
-              why: pick.why,
-              source: item.source,
-            });
-          }
+          // id → 검증된 라이브러리 항목으로 매핑. unknown id / 중복 / empty는
+          // resolvePicks가 drop. 모델이 만든 url은 응답에 들어가지 않는다.
+          const resolved: PlanResource[] = resolvePicks(r?.picks);
           emit({ type: "progress", section: "resources", phase: "done" });
           return { resources: resolved };
         });
