@@ -9,15 +9,19 @@ export type Question = {
   // - textarea: 토글 방식 (여러 개 선택 가능, ", "로 join). 자유 텍스트도 가능.
   // - text: 단일 선택 (클릭 시 값 교체). 자유 텍스트도 가능.
   quickPicks?: string[];
+  // 한 화면에 묶어 같이 표시. 같은 group 값의 연속된 질문들이 한 화면에 함께 보임.
+  // 피드백 #15/#32: "너무 많은 클릭" — 짧은 객관식/숫자/단답형은 그룹핑.
+  // /api/clarify follow-up이 동작하는 textarea 질문은 그룹핑하지 않음 (개별 화면 유지).
+  group?: string;
 };
 
 export const QUESTIONS: Question[] = [
-  { k: 'age', type: 'number', t: '몇 살인가요?', h: '숫자만 — 플랜 타임라인의 호흡을 맞추는 데 쓰여요.', ph: '예: 28' },
-  { k: 'occupation', type: 'text', t: '지금 무슨 일을 하거나 공부하고 있나요?', ph: '예: 마케팅 매니저 / 대학원생' },
-  { k: 'lifeSituation', type: 'choice', t: '지금 어떤 관계 상태인가요?', o: ['싱글', '가볍게 만나는 중', '진지하게 만나는 중', '결혼', '말하고 싶지 않음'] },
-  { k: 'income', type: 'choice', t: '연 소득은 대략 어느 정도인가요?', o: ['₩40M 미만 / <$30k', '₩40–80M / $30–60k', '₩80–130M / $60–100k', '₩130–200M / $100–150k', '₩200M+ / $150k+', '지금은 소득 없음', '말하고 싶지 않음'] },
-  { k: 'savings', type: 'choice', t: '저축은 얼마나 모았나요?', h: '월 생활비 기준 (퇴직연금 등은 제외).', o: ['3개월 미만', '3–6개월', '6–12개월', '1–2년', '2년 이상'] },
-  { k: 'hoursPerWeek', type: 'choice', t: '뭔가를 바꾸는 데 매주 현실적으로 쓸 수 있는 시간은?', h: '솔직하게 — 플랜이 이 시간 안에 들어가도록 설계됩니다.', o: ['2시간 미만', '2–5시간', '5–10시간', '10–20시간', '20시간 이상'] },
+  { k: 'age', type: 'number', t: '몇 살인가요?', h: '숫자만 — 플랜 타임라인의 호흡을 맞추는 데 쓰여요.', ph: '예: 28', group: 'basic' },
+  { k: 'occupation', type: 'text', t: '지금 무슨 일을 하거나 공부하고 있나요?', ph: '예: 마케팅 매니저 / 대학원생', group: 'basic' },
+  { k: 'lifeSituation', type: 'choice', t: '지금 어떤 관계 상태인가요?', o: ['싱글', '가볍게 만나는 중', '진지하게 만나는 중', '결혼', '말하고 싶지 않음'], group: 'basic' },
+  { k: 'income', type: 'choice', t: '연 소득은 대략 어느 정도인가요?', o: ['₩40M 미만 / <$30k', '₩40–80M / $30–60k', '₩80–130M / $60–100k', '₩130–200M / $100–150k', '₩200M+ / $150k+', '지금은 소득 없음', '말하고 싶지 않음'], group: 'commit' },
+  { k: 'savings', type: 'choice', t: '저축은 얼마나 모았나요?', h: '월 생활비 기준 (퇴직연금 등은 제외).', o: ['3개월 미만', '3–6개월', '6–12개월', '1–2년', '2년 이상'], group: 'commit' },
+  { k: 'hoursPerWeek', type: 'choice', t: '뭔가를 바꾸는 데 매주 현실적으로 쓸 수 있는 시간은?', h: '솔직하게 — 플랜이 이 시간 안에 들어가도록 설계됩니다.', o: ['2시간 미만', '2–5시간', '5–10시간', '10–20시간', '20시간 이상'], group: 'commit' },
   {
     k: 'stuck',
     type: 'textarea',
@@ -139,6 +143,38 @@ export const QUESTIONS: Question[] = [
       'ESTP', 'ESFP', 'ENFP', 'ENTP',
       'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ',
     ],
+    group: 'wrap',
   },
-  { k: 'boldness', type: 'choice', t: '플랜이 얼마나 과감했으면 좋겠나요?', h: '1 = 작은 점진적 변화 / 5 = 도약', o: ['1 — 점진적', '2 — 적당히', '3 — 균형', '4 — 과감하게', '5 — 도약'] },
+  { k: 'boldness', type: 'choice', t: '플랜이 얼마나 과감했으면 좋겠나요?', h: '1 = 작은 점진적 변화 / 5 = 도약', o: ['1 — 점진적', '2 — 적당히', '3 — 균형', '4 — 과감하게', '5 — 도약'], group: 'wrap' },
 ];
+
+// 동일 group 값을 가진 연속된 질문들을 한 화면(screen)으로 묶는다.
+// group이 없으면 단독 화면. textarea의 /api/clarify 흐름을 보존하려고
+// 깊은 textarea들은 group을 안 줘서 단독으로 남는다.
+export type Screen = { start: number; end: number; questions: Question[] };
+
+export const SCREENS: Screen[] = (() => {
+  const out: Screen[] = [];
+  let i = 0;
+  while (i < QUESTIONS.length) {
+    const q0 = QUESTIONS[i];
+    let end = i;
+    if (q0.group) {
+      while (end + 1 < QUESTIONS.length && QUESTIONS[end + 1].group === q0.group) {
+        end += 1;
+      }
+    }
+    out.push({ start: i, end, questions: QUESTIONS.slice(i, end + 1) });
+    i = end + 1;
+  }
+  return out;
+})();
+
+// 주어진 question index가 속한 screen 인덱스를 찾는다.
+export function screenIndexForQuestion(qIndex: number): number {
+  for (let s = 0; s < SCREENS.length; s += 1) {
+    const sc = SCREENS[s];
+    if (qIndex >= sc.start && qIndex <= sc.end) return s;
+  }
+  return 0;
+}
