@@ -296,6 +296,43 @@ function ActionCard({
             {action.why}
           </p>
 
+          {/* 난이도 3단계 — 모델이 채웠을 때만 노출. 사용자가 자신의 에너지에 맞는 버전을
+              스스로 고를 수 있게. */}
+          {action.tiers && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  { key: "low", label: "오늘 한 가지", color: "var(--green)", bg: "var(--green-soft)" },
+                  { key: "medium", label: "이번 주", color: "var(--warm)", bg: "var(--warm-soft)" },
+                  { key: "high", label: "이번 달 도약", color: "var(--blue)", bg: "var(--blue-soft)" },
+                ] as const
+              ).map((tier) => {
+                const text = action.tiers?.[tier.key];
+                if (!text) return null;
+                return (
+                  <div
+                    key={tier.key}
+                    className="rounded-lg p-3"
+                    style={{
+                      background: tier.bg,
+                      border: `1px solid ${tier.color}`,
+                    }}
+                  >
+                    <p
+                      className="text-[10px] font-medium tracking-[0.04em] uppercase mb-1.5"
+                      style={{ color: tier.color }}
+                    >
+                      {tier.label}
+                    </p>
+                    <p className="text-[12px] leading-relaxed" style={{ color: "var(--ink)" }}>
+                      {text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {interactive && (
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
               {!showNote && entry.note.length === 0 ? (
