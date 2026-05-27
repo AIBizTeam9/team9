@@ -72,3 +72,39 @@ export function libraryCatalogForPrompt(): string {
     (r) => `${r.id} · ${r.category} · ${r.title} — ${r.description}`,
   ).join("\n");
 }
+
+// LLM 응답의 picks 배열을 검증된 PlanResource[]로 변환한다.
+// 방어 규칙: empty id/why drop, 중복 id 1회만 채택, 라이브러리에 없는 id drop.
+// 모델이 만든 url은 절대 응답에 들어가지 않는다 — 서버가 라이브러리 url만 사용.
+export type Pick = { id?: string; why?: string };
+
+export type ResolvedResource = {
+  title: string;
+  url: string;
+  why: string;
+  source: string;
+};
+
+export function resolvePicks(picks: Pick[] | unknown): ResolvedResource[] {
+  if (!Array.isArray(picks)) return [];
+  const resolved: ResolvedResource[] = [];
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    if (!pick || typeof pick !== "object") continue;
+    const id = (pick as Pick).id;
+    const why = (pick as Pick).why;
+    if (typeof id !== "string" || !id) continue;
+    if (typeof why !== "string" || !why.trim()) continue;
+    if (seen.has(id)) continue;
+    const item = findResource(id);
+    if (!item) continue; // hallucinated id
+    seen.add(id);
+    resolved.push({
+      title: item.title,
+      url: item.url,
+      why,
+      source: item.source,
+    });
+  }
+  return resolved;
+}
