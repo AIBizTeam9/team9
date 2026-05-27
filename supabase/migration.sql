@@ -94,6 +94,9 @@ create table if not exists public.nextstep_plans (
 -- 진행 상황 (action별 완료/리뷰 노트). 기존 row에도 추가 가능.
 alter table public.nextstep_plans
   add column if not exists progress jsonb not null default '{}'::jsonb;
+-- 공유 가능 여부 (default false). 사용자가 명시적으로 공개로 토글한 플랜만 익명 read 허용.
+alter table public.nextstep_plans
+  add column if not exists is_public boolean not null default false;
 create index if not exists idx_nextstep_plans_user
   on public.nextstep_plans (user_id, created_at desc);
 
@@ -102,6 +105,11 @@ alter table public.nextstep_plans enable row level security;
 drop policy if exists "nextstep_plans_owner_all" on public.nextstep_plans;
 create policy "nextstep_plans_owner_all" on public.nextstep_plans
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 익명 사용자가 is_public=true인 플랜만 SELECT 가능. owner_all과 함께 동작 — 두 policy의 OR 합집합.
+drop policy if exists "nextstep_plans_public_read" on public.nextstep_plans;
+create policy "nextstep_plans_public_read" on public.nextstep_plans
+  for select using (is_public = true);
 
 -- 7. PostgREST 스키마 캐시 강제 새로고침
 -- 새 테이블/컬럼/정책이 즉시 anon 키로 접근 가능해지도록.

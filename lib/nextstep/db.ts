@@ -136,6 +136,7 @@ export interface SavedPlan {
   personas: Persona[];
   plan: Plan;
   progress: PlanProgress;
+  is_public: boolean;
 }
 
 export interface PlanSummary {
@@ -245,7 +246,87 @@ export async function getPlan(
     .maybeSingle();
   if (error || !data) return null;
   const row = data as SavedPlan;
-  return { ...row, progress: row.progress ?? {} };
+  // is_public 컬럼이 아직 마이그레이션되지 않은 환경에서도 false로 안전하게.
+  return {
+    ...row,
+    progress: row.progress ?? {},
+    is_public: row.is_public ?? false,
+  };
+}
+
+// 공유된 플랜 행 → SavedPlan. 순수 함수: Supabase 없이 테스트 가능.
+// 규칙: is_public !== true 이면 무조건 null. 형태 검증도 같이.
+// 절대 private 플랜을 노출시키지 않는 것이 단일 책임.
+export function gatePublicPlan(row: unknown): SavedPlan | null {
+  if (!row || typeof row !== "object") return null;
+  const r = row as Record<string, unknown>;
+  if (r.is_public !== true) return null;
+  if (typeof r.id !== "string" || !r.id) return null;
+  if (typeof r.user_id !== "string" || !r.user_id) return null;
+  if (typeof r.created_at !== "string") return null;
+  if (!r.plan || typeof r.plan !== "object") return null;
+  return {
+    id: r.id,
+    user_id: r.user_id,
+    created_at: r.created_at,
+    answers: (r.answers as Answers) ?? {},
+    personas: (r.personas as Persona[]) ?? [],
+    plan: r.plan as Plan,
+    progress: (r.progress as PlanProgress) ?? {},
+    is_public: true,
+  };
+}
+
+// 익명/공개 조회. 로그인 없이 호출 가능. is_public=true 인 플랜만 반환.
+// RLS의 nextstep_plans_public_read 정책과 gatePublicPlan 두 겹 가드.
+//
+// `client` 인자: 서버 컴포넌트(/share/[id])에서 createSupabaseServer() 결과를
+// 주입할 수 있다. 미지정 시 브라우저용 getSupabase()를 사용 — 테스트에서 fake
+// client를 주입하면 supabase 없이도 end-to-end 동작을 검증할 수 있다.
+export type PublicPlanQueryClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: unknown) => {
+        maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
+      };
+    };
+  };
+};
+
+export async function getPublicPlan(
+  id: string,
+  client?: PublicPlanQueryClient | null,
+): Promise<SavedPlan | null> {
+  if (typeof id !== "string" || !id.trim()) return null;
+  const supabase = client ?? (getSupabase() as PublicPlanQueryClient | null);
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("nextstep_plans")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return gatePublicPlan(data);
+}
+
+// 소유자만 is_public 값을 토글. 기존 owner_all RLS가 user_id == auth.uid()로 강제.
+export async function setPlanPublic(
+  userId: string,
+  id: string,
+  isPublic: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: "Supabase 클라이언트 미초기화" };
+  const { error } = await supabase
+    .from("nextstep_plans")
+    .update({ is_public: isPublic })
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) {
+    console.error("[setPlanPublic] failed:", error);
+    return { ok: false, error: error.message || "update failed" };
+  }
+  return { ok: true };
 }
 
 export async function updatePlanProgress(
