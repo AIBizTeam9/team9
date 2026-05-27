@@ -53,13 +53,29 @@ Writing rules:
 - theme: 4-8 words capturing this month's focus, distinct from other months.
 - 3-5 actions. Each must fit the user's stated weekly hours budget.
 - weeks: month 1 uses weeks 1-4, month 2 uses 5-8, month 3 uses 9-12.
+- For EACH action, also produce three difficulty tiers — three concrete versions of the same underlying intent at different execution barriers:
+  - high: high-commitment version. A real step that takes weekly hours and money. Example: "휴직 후 한 달 항공권 예매".
+  - medium: moderate version. Doable in a normal week. Example: "금요일 반차 후 근교 1박 호캉스".
+  - low: micro-action doable TODAY in 15 minutes. Example: "오늘 저녁 명상 클래스 한 곳 등록".
+- The three tiers must all advance the SAME action title — not three different actions. They are difficulty variants of one move.
+- Honesty rule: avoid over-definitive statistics or guarantees ("당신은 반드시 ~할 것입니다"). Phrase outcomes as plausible bets, not certainties.
 
 Schema:
 {
   "month": <number>,
   "theme": "string",
   "actions": [
-    { "week": <number>, "title": "string", "why": "string (1-2 sentences)", "effort": "small" | "medium" | "large" }
+    {
+      "week": <number>,
+      "title": "string",
+      "why": "string (1-2 sentences)",
+      "effort": "small" | "medium" | "large",
+      "tiers": {
+        "high": "string",
+        "medium": "string",
+        "low": "string"
+      }
+    }
   ]
 }`;
 
