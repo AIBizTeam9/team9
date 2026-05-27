@@ -139,12 +139,22 @@ export default function PlanPage() {
           {plan.headline}
         </h1>
 
-        <p
-          className="leading-relaxed mb-12"
-          style={{ color: 'var(--ink-3)', fontSize: '16px', maxWidth: '600px' }}
-        >
-          {plan.rationale}
-        </p>
+        {/* 두 자아의 결론 — 피드백 #29 "디베이트가 쓱 지나갈 뿐" 대응. rationale을
+            "두 자아가 무엇을 결론냈는지"로 프레이밍해서 디베이트의 의도를 명시. */}
+        <div className="mb-12" style={{ maxWidth: '600px' }}>
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+            style={{ color: 'var(--warm)' }}
+          >
+            두 자아의 결론
+          </p>
+          <p
+            className="leading-relaxed"
+            style={{ color: 'var(--ink-2)', fontSize: '16px' }}
+          >
+            {plan.rationale}
+          </p>
+        </div>
 
         {/* ── Core insight ─────────────────────────── */}
         <div
@@ -215,25 +225,78 @@ export default function PlanPage() {
           </p>
         </div>
 
-        {/* ── Calendar export — day-1 = today (fresh result) ── */}
-        <CalendarExportButton plan={plan} startDate={new Date()} />
+        {/* ── 차별점 가시화: 플랜은 닫는 순간 끝이 아니다 ──
+            피드백 클러스터 #6/#7/#11/#12/#19/#22/#25/#33/#35/#48/#49 ("그냥 채팅",
+            "한 번 쓰고 끝") 대응. 결과 화면에서 "추적 + 캘린더" 가치를 명시. */}
+        <div
+          className="mt-10 rounded-2xl p-7"
+          style={{
+            background: 'var(--bg-2)',
+            border: '1px solid var(--line)',
+            boxShadow: 'var(--shadow)',
+          }}
+        >
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+            style={{ color: 'var(--warm)' }}
+          >
+            ✦ 다음 단계
+          </p>
+          <h3
+            className="font-serif leading-[1.3] mb-2"
+            style={{ color: 'var(--ink)', fontSize: 'clamp(20px, 3vw, 26px)' }}
+          >
+            이 플랜을 저장하고 90일간 추적하세요
+          </h3>
+          <p className="text-[13.5px] leading-relaxed mb-5" style={{ color: 'var(--ink-3)' }}>
+            한 번 만들고 닫으면 그냥 또 하나의 ChatGPT 답변이 됩니다.
+            매일 한 줄 체크인과 연속 기록으로 90일 끝까지 따라오게 만드세요.
+          </p>
 
-        {/* Save status */}
-        {savedId && (
-          <div className="mt-10 text-center">
-            <p className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
-              이 플랜은 내 정보에 저장됐어요. 언제든{' '}
-              <Link
-                href="/account/next-step"
-                className="underline"
-                style={{ color: 'var(--ink-2)' }}
-              >
-                지난 플랜
-              </Link>
-              에서 다시 볼 수 있어요.
-            </p>
+          {/* 추적 CTA — 로그인 상태에 따라 다르게 */}
+          {savedId ? (
+            <Link
+              href={`/account/next-step/${savedId}`}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: 'var(--warm)' }}
+            >
+              📓 90일 추적 시작하기 →
+            </Link>
+          ) : loginPrompt ? (
+            <Link
+              href="/login?next=/next-step/plan"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: 'var(--warm)' }}
+            >
+              구글 로그인하고 저장 →
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-2 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+              저장 중…
+            </span>
+          )}
+
+          {/* 캘린더 내보내기 — 같은 카드 안에서 명확하게 노출 */}
+          <div className="mt-6 pt-6" style={{ borderTop: '1px solid var(--line)' }}>
+            <CalendarExportButton plan={plan} startDate={new Date()} />
           </div>
+        </div>
+
+        {/* 지난 플랜 보기 — 저장된 사용자 보조 링크 */}
+        {savedId && (
+          <p className="text-[12px] mt-4 text-center" style={{ color: 'var(--ink-3)' }}>
+            언제든{' '}
+            <Link
+              href="/account/next-step"
+              className="underline"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              지난 플랜
+            </Link>
+            에서 다시 볼 수 있어요.
+          </p>
         )}
+
         {saveError && !savedId && (
           <div
             className="mt-10 rounded-xl p-4"
@@ -264,24 +327,6 @@ export default function PlanPage() {
             </button>
           </div>
         )}
-        {loginPrompt && !savedId && (
-          <div
-            className="mt-10 rounded-xl p-4 text-center"
-            style={{ background: 'var(--accent-2)', border: '1px solid var(--line)' }}
-          >
-            <p className="text-[13px] mb-2" style={{ color: 'var(--ink-2)' }}>
-              지금 본 플랜을 나중에 다시 보려면 — 구글 한 번 누르면 끝이에요.
-            </p>
-            <Link
-              href="/login?next=/next-step/plan"
-              className="inline-block text-[12px] font-semibold underline"
-              style={{ color: 'var(--ink)' }}
-            >
-              구글로 시작 →
-            </Link>
-          </div>
-        )}
-
         {/* Start over */}
         <div className="mt-10 text-center">
           <Link

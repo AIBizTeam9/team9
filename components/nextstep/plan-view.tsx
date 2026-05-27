@@ -55,12 +55,21 @@ export default function PlanView({
         {plan.headline}
       </h1>
 
-      <p
-        className="leading-relaxed mb-10"
-        style={{ color: "var(--ink-3)", fontSize: "16px", maxWidth: "600px" }}
-      >
-        {plan.rationale}
-      </p>
+      {/* 두 자아의 결론 — rationale을 "디베이트 결과"로 명시. */}
+      <div className="mb-10" style={{ maxWidth: "600px" }}>
+        <p
+          className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+          style={{ color: "var(--warm)" }}
+        >
+          두 자아의 결론
+        </p>
+        <p
+          className="leading-relaxed"
+          style={{ color: "var(--ink-2)", fontSize: "16px" }}
+        >
+          {plan.rationale}
+        </p>
+      </div>
 
       <div
         className="rounded-2xl p-7 mb-14"

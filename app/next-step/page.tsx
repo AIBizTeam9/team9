@@ -74,6 +74,57 @@ export default function NextStepLandingPage() {
         </div>
       </main>
 
+      {/* Why this isn't just ChatGPT — 49명 피드백 중 가장 큰 클러스터(#6, #7, #11, #12, #19,
+          #22, #25, #33, #35, #48, #49)에 대한 답. 차별점을 카피로 명시. */}
+      <section
+        className="border-t px-6 py-16"
+        style={{ borderColor: 'var(--line)' }}
+      >
+        <div className="max-w-[860px] mx-auto">
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3 text-center"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            그냥 ChatGPT와 뭐가 다른가
+          </p>
+          <h2
+            className="font-serif text-center leading-[1.2] tracking-[-0.01em] mb-10"
+            style={{ color: 'var(--ink)', fontSize: 'clamp(24px, 3vw, 30px)' }}
+          >
+            한 번 쓰고 닫히지 않습니다.
+          </h2>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {DIFFERENTIATORS.map((d) => (
+              <div
+                key={d.title}
+                className="rounded-2xl p-6"
+                style={{
+                  background: 'var(--bg-2)',
+                  border: '1px solid var(--line)',
+                }}
+              >
+                <div
+                  className="text-[11px] font-medium tracking-[0.08em] uppercase mb-2"
+                  style={{ color: 'var(--warm)' }}
+                >
+                  {d.kicker}
+                </div>
+                <div
+                  className="text-[18px] mb-2 font-serif leading-tight"
+                  style={{ color: 'var(--ink)' }}
+                >
+                  {d.title}
+                </div>
+                <p className="text-[13px] leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                  {d.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* What you get section */}
       <section
         className="border-t px-6 py-16"
@@ -114,6 +165,24 @@ export default function NextStepLandingPage() {
     </div>
   );
 }
+
+const DIFFERENTIATORS = [
+  {
+    kicker: '기억',
+    title: '플랜을 잊지 않고 추적',
+    desc: '플랜은 자동으로 저장되고, 매일 한 줄 체크인과 연속 기록으로 90일 동안 따라옵니다.',
+  },
+  {
+    kicker: '근거',
+    title: '검증된 실제 링크',
+    desc: '환각된 URL 대신 사람이 한 번 점검한 카탈로그(사람인·인프런·네이버 도서 등)에서만 추천.',
+  },
+  {
+    kicker: '이동',
+    title: '캘린더로 내보내기',
+    desc: '플랜의 12+개 액션을 .ics 한 파일로 다운로드 → Apple·Google·Outlook 캘린더에 바로 꽂힘.',
+  },
+];
 
 const FEATURES = [
   {
