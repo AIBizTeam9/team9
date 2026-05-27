@@ -105,7 +105,7 @@ export default function PersonasPage() {
               fontSize: 'clamp(40px, 6vw, 66px)',
             }}
           >
-            Which two futures should argue for you?
+            어떤 두 미래가 당신을 위해 논쟁할까요?
           </h1>
           <p
             className="leading-relaxed mx-auto"
@@ -115,8 +115,8 @@ export default function PersonasPage() {
               maxWidth: '520px',
             }}
           >
-            Each of these is a version of who you could be in three years.
-            Pick two — they&apos;ll argue with each other to find your 90-day plan.
+            아래는 3년 뒤 당신이 될 수 있는 네 가지 모습이에요.
+            두 개를 골라보세요 — 그 둘이 서로 논쟁하면서 당신의 90일 플랜을 만들어줍니다.
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export default function PersonasPage() {
                   style={{ color: 'var(--ink-3)', fontSize: '14px' }}
                 >
                   <span className="not-italic font-medium" style={{ color: 'var(--ink-3)' }}>
-                    Afraid of:{' '}
+                    두려워하는 것:{' '}
                   </span>
                   {persona.keyFear}
                 </p>
@@ -212,7 +212,7 @@ export default function PersonasPage() {
         {/* Counter + CTA */}
         <div className="flex flex-col items-center gap-4 mt-10">
           <p className="text-[13px]" style={{ color: 'var(--ink-3)' }}>
-            {selectedCount} of 2 selected
+            2개 중 {selectedCount}개 선택됨
           </p>
 
           <button
@@ -226,7 +226,7 @@ export default function PersonasPage() {
               cursor: selectedCount === 2 ? 'pointer' : 'not-allowed',
             }}
           >
-            Build my plan with these two →
+            이 두 미래로 플랜 만들기 →
           </button>
         </div>
       </main>
@@ -238,7 +238,7 @@ export default function PersonasPage() {
           className="text-[13px] hover:underline transition-all"
           style={{ color: 'var(--ink-3)', textDecorationLine: 'none' }}
         >
-          ← Back
+          ← 이전
         </Link>
       </div>
     </div>

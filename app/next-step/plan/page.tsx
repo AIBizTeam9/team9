@@ -9,9 +9,9 @@ import { savePlan } from '@/lib/nextstep/db';
 import CalendarExportButton from '@/components/nextstep/calendar-export-button';
 
 const EFFORT_STYLE: Record<PlanAction['effort'], { bg: string; color: string; label: string }> = {
-  small:  { bg: 'var(--green-soft)',  color: 'var(--green)',  label: 'small' },
-  medium: { bg: 'var(--warm-soft)',   color: 'var(--warm)',   label: 'medium' },
-  large:  { bg: 'var(--blue-soft)',   color: 'var(--blue)',   label: 'large' },
+  small:  { bg: 'var(--green-soft)',  color: 'var(--green)',  label: '가볍게' },
+  medium: { bg: 'var(--warm-soft)',   color: 'var(--warm)',   label: '보통' },
+  large:  { bg: 'var(--blue-soft)',   color: 'var(--blue)',   label: '묵직' },
 };
 
 export default function PlanPage() {
@@ -128,7 +128,7 @@ export default function PlanPage() {
           className="inline-flex items-center gap-1.5 text-[12px] mb-12 transition-opacity hover:opacity-70"
           style={{ color: 'var(--ink-3)' }}
         >
-          ← Retake quiz
+          ← 다시 답하기
         </Link>
 
         {/* ── Hero ─────────────────────────────────── */}
@@ -158,13 +158,13 @@ export default function PlanPage() {
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3"
             style={{ color: 'var(--warm)' }}
           >
-            Core insight
+            핵심 통찰
           </p>
           <p
             className="font-serif leading-[1.4]"
             style={{ color: 'var(--ink)', fontSize: 'clamp(18px, 2.5vw, 22px)', fontStyle: 'italic' }}
           >
-            "{plan.coreInsight}"
+            &ldquo;{plan.coreInsight}&rdquo;
           </p>
         </div>
 
@@ -184,7 +184,7 @@ export default function PlanPage() {
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-6"
             style={{ color: 'var(--ink-3)' }}
           >
-            Recommended resources
+            추천 자료
           </p>
           <div className="flex flex-col gap-3">
             {plan.resources.map((r) => (
@@ -205,7 +205,7 @@ export default function PlanPage() {
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
             style={{ color: 'var(--warm)' }}
           >
-            Do this today
+            오늘 할 한 가지
           </p>
           <p
             className="font-serif leading-[1.4]"
@@ -289,7 +289,7 @@ export default function PlanPage() {
             className="text-[13px] transition-opacity hover:opacity-70"
             style={{ color: 'var(--ink-3)' }}
           >
-            ← Start over with new answers
+            ← 새로 답하고 다시 만들기
           </Link>
         </div>
 
@@ -309,7 +309,7 @@ function MonthSection({ month }: { month: PlanMonth }) {
           className="text-[11px] font-medium tracking-[0.08em] uppercase shrink-0"
           style={{ color: 'var(--ink-3)' }}
         >
-          Month {month.month}
+          {month.month}개월차
         </span>
         <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
       </div>
@@ -345,7 +345,7 @@ function ActionCard({ action }: { action: PlanAction }) {
           className="text-[11px] font-medium tabular-nums"
           style={{ color: 'var(--ink-3)' }}
         >
-          Week {action.week}
+          {action.week}주차
         </span>
         <span
           className="text-[10px] font-medium px-2 py-0.5 rounded-full"
