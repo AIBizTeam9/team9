@@ -54,9 +54,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("ko");
 
   useEffect(() => {
+    // 마운트 시 한 번만 cookie 보정. SSR/hydration mismatch 회피용.
     const fromCookie = readCookieLocale();
-    if (fromCookie && fromCookie !== locale) setLocaleState(fromCookie);
-    // 마운트 시 한 번만.
+    if (fromCookie && fromCookie !== locale) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocaleState(fromCookie);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
