@@ -173,3 +173,4 @@ Key routing rules:
 
 - typecheck: npx tsc --noEmit
 - lint: npm run lint
+- test: npm test
