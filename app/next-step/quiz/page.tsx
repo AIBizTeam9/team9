@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { QUESTIONS } from '@/lib/questions';
+import { getQuestions } from '@/lib/questions';
+import { useLocale } from '@/lib/i18n';
 import type { Answers } from '@/lib/types';
 
 type Phase = 'main' | 'loading' | 'followup';
@@ -17,14 +18,17 @@ const CLARIFY_KEYS = new Set(['stuck', 'desiredChange', 'tried', 'strengths', 's
 
 export default function QuizPage() {
   const router = useRouter();
+  const { locale, t } = useLocale();
+  // locale 바뀌면 같은 인덱스의 question을 다른 언어로 다시 보여줌.
+  const questions = useMemo(() => getQuestions(locale), [locale]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [phase, setPhase] = useState<Phase>('main');
   const [followUpData, setFollowUpData] = useState<FollowUpData | null>(null);
   const [followUpAnswer, setFollowUpAnswer] = useState('');
 
-  const q = QUESTIONS[index];
-  const total = QUESTIONS.length;
+  const q = questions[index];
+  const total = questions.length;
   const currentValue = String(answers[q.k] ?? '');
 
   function setAnswer(v: string) {
@@ -154,7 +158,7 @@ export default function QuizPage() {
               }}
             />
             <p className="text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              답변을 읽고 있어요…
+              {t('quiz.loading')}
             </p>
           </div>
         )}
@@ -220,7 +224,7 @@ export default function QuizPage() {
                 />
                 {q.type === 'text' && q.quickPicks && q.quickPicks.length > 0 && (
                   <p className="text-[11px] mt-2" style={{ color: 'var(--ink-3)' }}>
-                    위에서 골라도 되고, 직접 적어도 됩니다.
+                    {t('quiz.hint.afterPicks.text')}
                   </p>
                 )}
               </>
@@ -277,7 +281,7 @@ export default function QuizPage() {
                 />
                 {q.quickPicks && q.quickPicks.length > 0 && (
                   <p className="text-[11px] mt-2" style={{ color: 'var(--ink-3)' }}>
-                    위 항목을 클릭해 선택하거나, 직접 풀어 적어도 됩니다. 구체적일수록 좋은 플랜이 나와요.
+                    {t('quiz.hint.afterPicks.textarea')}
                   </p>
                 )}
               </>
@@ -320,7 +324,7 @@ export default function QuizPage() {
                 className="text-[11px] uppercase tracking-widest mb-2"
                 style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}
               >
-                내가 쓴 답변
+                {t('quiz.followup.myAnswer')}
               </p>
               <p
                 className="text-[14px] leading-relaxed px-4 py-3 rounded-xl"
@@ -375,7 +379,7 @@ export default function QuizPage() {
             cursor: backDisabled ? 'default' : 'pointer',
           }}
         >
-          ← 이전
+          {t('quiz.nav.back')}
         </button>
 
         {phase === 'followup' ? (
@@ -389,7 +393,7 @@ export default function QuizPage() {
               cursor: followUpCanAdvance ? 'pointer' : 'not-allowed',
             }}
           >
-            다음 →
+            {t('quiz.nav.next')}
           </button>
         ) : (
           <button
@@ -402,7 +406,7 @@ export default function QuizPage() {
               cursor: phase !== 'loading' && canAdvance ? 'pointer' : 'not-allowed',
             }}
           >
-            {index === total - 1 ? '내 플랜 만들기 →' : '다음 →'}
+            {index === total - 1 ? t('quiz.nav.finish') : t('quiz.nav.next')}
           </button>
         )}
       </div>

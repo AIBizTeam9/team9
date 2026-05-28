@@ -34,4 +34,14 @@ export const en: { [K in keyof typeof ko]: string } = {
   "landing.feature.today.title": "One thing to do today",
   "landing.feature.today.desc":
     "Every plan ends with a single first step you can take before the day is over.",
+
+  // Quiz (/next-step/quiz) — UI chrome only. Question bodies live in lib/questions.ts.
+  "quiz.loading": "Reading your answer…",
+  "quiz.hint.afterPicks.text": "Pick one above, or type your own.",
+  "quiz.hint.afterPicks.textarea":
+    "Click items above or write your own. The more specific, the better the plan.",
+  "quiz.followup.myAnswer": "Your answer",
+  "quiz.nav.back": "← Back",
+  "quiz.nav.next": "Next →",
+  "quiz.nav.finish": "Build my plan →",
 };

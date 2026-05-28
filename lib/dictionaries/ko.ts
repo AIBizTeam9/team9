@@ -30,4 +30,14 @@ export const ko = {
   "landing.feature.today.title": "오늘 할 한 가지",
   "landing.feature.today.desc":
     "모든 플랜은 오늘 안에 시작할 수 있는 한 가지 첫걸음으로 끝납니다.",
+
+  // Quiz (/next-step/quiz) — UI chrome only. 질문 본문은 lib/questions.ts에서.
+  "quiz.loading": "답변을 읽고 있어요…",
+  "quiz.hint.afterPicks.text": "위에서 골라도 되고, 직접 적어도 됩니다.",
+  "quiz.hint.afterPicks.textarea":
+    "위 항목을 클릭해 선택하거나, 직접 풀어 적어도 됩니다. 구체적일수록 좋은 플랜이 나와요.",
+  "quiz.followup.myAnswer": "내가 쓴 답변",
+  "quiz.nav.back": "← 이전",
+  "quiz.nav.next": "다음 →",
+  "quiz.nav.finish": "내 플랜 만들기 →",
 } as const;
