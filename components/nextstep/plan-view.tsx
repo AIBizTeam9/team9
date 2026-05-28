@@ -87,6 +87,70 @@ export default function PlanView({
         </p>
       </div>
 
+      {/* 안내: tiers가 한 액션이라도 있을 때만 보임. 인터뷰에서 "플랜이 와도
+          막상 시작 못 함"이 가장 큰 이탈 사유였던 점을 사용자에게도 한 줄로
+          노출 — 3카드의 의미를 알고 쓰게 한다. */}
+      {plan.months.some((m) => m.actions.some((a) => a.tiers)) && (
+        <div
+          className="rounded-2xl p-6 mb-14"
+          style={{
+            background: "var(--bg-2)",
+            border: "1px solid var(--line)",
+          }}
+        >
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3"
+            style={{ color: "var(--ink-3)" }}
+          >
+            왜 3가지 강도?
+          </p>
+          <p
+            className="text-[14px] leading-relaxed mb-4"
+            style={{ color: "var(--ink-2)" }}
+          >
+            액션마다 큰 결단부터 오늘 15분짜리까지 같은 의도의 3가지 변형을
+            함께 둡니다. 인터뷰에서 사용자들이 가장 자주 멈춘 지점이
+            &ldquo;플랜이 와도 막상 시작 못 함&rdquo;이었습니다 — 한 번에
+            큰 한 가지가 아니라, 지금 내 에너지에 맞는 한 가지를 고르세요.
+          </p>
+          <ul className="space-y-2 text-[13px]" style={{ color: "var(--ink)" }}>
+            <li className="flex gap-2">
+              <span
+                className="font-medium shrink-0"
+                style={{ color: "var(--green)" }}
+              >
+                오늘 한 가지 ·
+              </span>
+              <span style={{ color: "var(--ink-2)" }}>
+                15분 안에 시작 가능한 마이크로 액션
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span
+                className="font-medium shrink-0"
+                style={{ color: "var(--warm)" }}
+              >
+                이번 주 ·
+              </span>
+              <span style={{ color: "var(--ink-2)" }}>
+                반차 / 주말 한 블록으로 가능한 중간 강도
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span
+                className="font-medium shrink-0"
+                style={{ color: "var(--blue)" }}
+              >
+                이번 달 도약 ·
+              </span>
+              <span style={{ color: "var(--ink-2)" }}>
+                휴직 / 항공권 같은 큰 결단형
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col gap-14">
         {plan.months.map((month) => (
           <MonthSection
