@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Plan, PlanAction, PlanMonth, PlanResource } from "@/lib/types";
 import type { PlanProgress, PlanProgressEntry } from "@/lib/nextstep/db";
+import { currentWeek, isWithinPlan } from "@/lib/nextstep/current-week";
 import CalendarExportButton from "./calendar-export-button";
 
 const EFFORT_STYLE: Record<
@@ -46,6 +47,11 @@ export default function PlanView({
   startDate,
   planId,
 }: Props) {
+  // startDate가 있을 때만 "이번 주" 계산 가능. 플랜 윈도우(1-12) 밖이면 undefined로
+  // 떨어뜨려 ActionCard에서 하이라이트 안 함.
+  const week = startDate ? currentWeek(startDate, new Date()) : 0;
+  const activeWeek = isWithinPlan(week) ? week : undefined;
+
   return (
     <>
       <h1
@@ -94,6 +100,7 @@ export default function PlanView({
             month={month}
             progress={progress}
             onProgressChange={onProgressChange}
+            activeWeek={activeWeek}
           />
         ))}
       </div>
@@ -148,10 +155,12 @@ function MonthSection({
   month,
   progress,
   onProgressChange,
+  activeWeek,
 }: {
   month: PlanMonth;
   progress?: PlanProgress;
   onProgressChange?: (week: number, next: PlanProgressEntry) => void;
+  activeWeek?: number;
 }) {
   return (
     <div>
@@ -184,6 +193,7 @@ function MonthSection({
                 ? (next) => onProgressChange(action.week, next)
                 : undefined
             }
+            isCurrentWeek={activeWeek === action.week}
           />
         ))}
       </div>
@@ -195,10 +205,12 @@ function ActionCard({
   action,
   entry,
   onChange,
+  isCurrentWeek = false,
 }: {
   action: PlanAction;
   entry: PlanProgressEntry;
   onChange?: (next: PlanProgressEntry) => void;
+  isCurrentWeek?: boolean;
 }) {
   const ef = EFFORT_STYLE[action.effort] ?? EFFORT_STYLE.medium;
   const interactive = !!onChange;
@@ -211,13 +223,20 @@ function ActionCard({
     onChange?.({ ...entry, note, updatedAt: new Date().toISOString() });
   };
 
+  // 이번 주 카드 강조: 완료된 카드(green)는 완료 색 유지, 미완료는 warm으로
+  // 강조. shadow도 한 단계 올려서 시각적으로 떠보이게.
+  const highlighted = isCurrentWeek && !entry.done;
+
   return (
     <div
       className="rounded-xl p-5"
       style={{
-        background: entry.done ? "var(--green-soft)" : "var(--bg-2)",
-        border: `1px solid ${entry.done ? "var(--green)" : "var(--line)"}`,
-        transition: "background 200ms, border 200ms",
+        background: entry.done ? "var(--green-soft)" : highlighted ? "var(--warm-soft)" : "var(--bg-2)",
+        border: `${highlighted ? 2 : 1}px solid ${
+          entry.done ? "var(--green)" : highlighted ? "var(--warm)" : "var(--line)"
+        }`,
+        boxShadow: highlighted ? "0 0 0 4px var(--warm-soft)" : "none",
+        transition: "background 200ms, border 200ms, box-shadow 200ms",
       }}
     >
       <div className="flex items-start gap-3">
@@ -255,6 +274,14 @@ function ActionCard({
             >
               {action.week}주차
             </span>
+            {isCurrentWeek && (
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={{ background: "var(--warm)", color: "white" }}
+              >
+                ★ 이번 주
+              </span>
+            )}
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{ background: ef.bg, color: ef.color }}
