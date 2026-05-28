@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import Link from "next/link";
 import AuthButton from "@/components/auth-button";
+import LangToggle from "@/components/lang-toggle";
+import { LocaleProvider } from "@/lib/i18n";
 import "./globals.css";
 
 const inter = Inter({
@@ -35,42 +37,45 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${inter.variable} ${instrumentSerif.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <nav className="sticky top-0 z-50 bg-[var(--bg)]/90 backdrop-blur-sm border-b border-[var(--line)]">
-          <div className="max-w-[980px] mx-auto px-6 h-14 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="w-[7px] h-[7px] rounded-full bg-gradient-to-br from-[var(--ink)] to-[var(--warm)]" />
-              <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
-                Next Step in Life
-              </span>
-            </Link>
+        <LocaleProvider>
+          <nav className="sticky top-0 z-50 bg-[var(--bg)]/90 backdrop-blur-sm border-b border-[var(--line)]">
+            <div className="max-w-[980px] mx-auto px-6 h-14 flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="w-[7px] h-[7px] rounded-full bg-gradient-to-br from-[var(--ink)] to-[var(--warm)]" />
+                <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+                  Next Step in Life
+                </span>
+              </Link>
 
-            <div className="flex items-center gap-1">
-              {NAV_ITEMS.map((item) =>
-                item.href.endsWith(".html") ? (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
-                  >
-                    {item.label}
-                  </Link>
-                ),
-              )}
-              <div className="ml-2 pl-2 border-l border-[var(--line)]">
-                <AuthButton />
+              <div className="flex items-center gap-1">
+                {NAV_ITEMS.map((item) =>
+                  item.href.endsWith(".html") ? (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="px-3 py-1.5 rounded-lg text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--accent-2)] transition-all"
+                    >
+                      {item.label}
+                    </Link>
+                  ),
+                )}
+                <div className="ml-2 pl-2 border-l border-[var(--line)] flex items-center gap-3">
+                  <LangToggle />
+                  <AuthButton />
+                </div>
               </div>
             </div>
-          </div>
-        </nav>
-        {children}
+          </nav>
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );

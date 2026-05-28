@@ -168,3 +168,9 @@ Key routing rules:
 - Review what gstack has learned → invoke /learn
 - Tune question sensitivity → invoke /plan-tune
 - Code quality dashboard → invoke /health
+
+## Health Stack
+
+- typecheck: npx tsc --noEmit
+- lint: npm run lint
+- test: npm test

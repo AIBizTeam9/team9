@@ -1,0 +1,89 @@
+{
+  "task": "Add EN | KO language toggle in nav top-right; render entire user-facing UI in both languages; persist user choice; default locale ko. Work directly on dongkeun branch.",
+  "branch": "dongkeun",
+  "baseline_head": "65e937013fa0282d4f95230d343887b5947a6689",
+  "scope_in": [
+    "lib/i18n.ts (new)",
+    "lib/dictionaries/ko.ts + en.ts (new)",
+    "components/lang-toggle.tsx (new)",
+    "app/layout.tsx (nav)",
+    "app/next-step/page.tsx",
+    "app/next-step/quiz/page.tsx",
+    "app/next-step/personas/page.tsx",
+    "app/next-step/plan/page.tsx",
+    "components/nextstep/plan-view.tsx",
+    "lib/questions.ts (bilingual)"
+  ],
+  "scope_out": [
+    "API prompts (already language-agnostic)",
+    "LLM dynamic output (persona names, debate content)",
+    "/letter, /lab, /whytree, /login, /account",
+    "Other teammate working files outside this list"
+  ],
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "i18n foundation: lib/i18n.ts utility + locale state + cookie persistence",
+      "passes": false,
+      "acceptanceCriteria": [
+        "lib/i18n.ts exports useLocale() hook returning { locale, setLocale, t }",
+        "Default locale is 'ko' when no cookie is present",
+        "setLocale('en') writes a cookie 'lang=en' with 1-year expiry; setLocale('ko') writes 'lang=ko'",
+        "useLocale() reads the 'lang' cookie on mount and uses it (falling back to 'ko')",
+        "t(key) returns the string from the correct dictionary for the current locale; falls back to key when missing",
+        "lib/i18n.ts compiles with no TypeScript errors (npx tsc --noEmit clean for this file)"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Dictionaries: lib/dictionaries/ko.ts populated from current pages; en.ts restored from a184f6c^ git history",
+      "passes": false,
+      "acceptanceCriteria": [
+        "lib/dictionaries/ko.ts exists and exports a flat object with all current Korean UI strings (landing, quiz UI, personas UI, plan UI, plan-view, lang toggle labels)",
+        "lib/dictionaries/en.ts exists and exports the same key set in English, with values restored from a184f6c^ git history",
+        "Both dictionaries share the EXACT same keys (verifiable by static type)",
+        "Keys are namespaced by page: landing.headline, landing.subcopy, quiz.next, etc."
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Language toggle UI + nav integration",
+      "passes": false,
+      "acceptanceCriteria": [
+        "components/lang-toggle.tsx is a client component that uses useLocale()",
+        "Displays 'EN | KO' with the inactive locale dimmed and active locale highlighted",
+        "Click on EN or KO immediately switches locale (no page reload required) and persists via cookie",
+        "app/layout.tsx renders <LangToggle /> in the nav, positioned to the right side"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Wire all user-facing pages to t() lookups + bilingual lib/questions.ts",
+      "passes": false,
+      "acceptanceCriteria": [
+        "app/next-step/page.tsx (landing) uses t() for headline, subcopy, CTA, metadata row, feature cards",
+        "app/next-step/quiz/page.tsx uses t() for loading copy, follow-up label, prev/next buttons",
+        "app/next-step/personas/page.tsx uses t() for headline, fear label, counter, CTA",
+        "app/next-step/plan/page.tsx uses t() for core insight, recommended resources, one thing today, month/week labels, effort labels",
+        "components/nextstep/plan-view.tsx uses t() for any user-facing strings it owns",
+        "lib/questions.ts exposes BOTH ko and en variants per question (t, h, ph, o, quickPicks); the consumer picks the right one based on current locale",
+        "No hard-coded Korean or English UI string remains in the listed user-facing files"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Verification: build green, lint no new errors, optional unit test for i18n util",
+      "passes": false,
+      "acceptanceCriteria": [
+        "npm run build completes with exit 0 and emits the same routes as before",
+        "npm run lint reports NO new errors compared to pre-ralph baseline (current main has 7 errors; this story may match that count but must not exceed)",
+        "Optional: lib/i18n.test.ts with 1-2 vitest cases covering t() fallback and locale state — only if vitest is wired in dongkeun; skip if not"
+      ]
+    }
+  ],
+  "verification_per_iteration": ["npm run build", "npm run lint"],
+  "stop_conditions": {
+    "same_error_repeats": 3,
+    "min_iterations_before_completion": 3
+  }
+}
