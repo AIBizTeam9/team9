@@ -52,6 +52,12 @@ export default function PlanView({
   const week = startDate ? currentWeek(startDate, new Date()) : 0;
   const activeWeek = isWithinPlan(week) ? week : undefined;
 
+  // 이번 주 액션 찾기 — 모든 month를 평탄화 후 week 매칭. 안 찾히면 배너 안 보임.
+  const activeAction =
+    activeWeek !== undefined
+      ? plan.months.flatMap((m) => m.actions).find((a) => a.week === activeWeek)
+      : undefined;
+
   return (
     <>
       <h1
@@ -67,6 +73,45 @@ export default function PlanView({
       >
         {plan.rationale}
       </p>
+
+      {/* 이번 주 배너 — startDate가 있고 플랜 윈도우 안에 있을 때만 표시.
+          액션이 매칭되면 제목까지, 매칭 안 되면 주 번호만. 사용자가 페이지를
+          열자마자 "지금 어디"를 0초에 알게 한다. */}
+      {activeWeek !== undefined && (
+        <div
+          className="rounded-2xl px-5 py-4 mb-10 flex items-center gap-4"
+          style={{
+            background: "var(--warm)",
+            color: "white",
+          }}
+        >
+          <div className="flex flex-col items-center justify-center shrink-0"
+               style={{ minWidth: 56 }}>
+            <span className="text-[10px] font-medium tracking-[0.08em] uppercase opacity-80">
+              이번 주
+            </span>
+            <span className="font-serif text-[22px] leading-none tabular-nums">
+              W{activeWeek}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            {activeAction ? (
+              <>
+                <p className="text-[11px] tracking-[0.04em] uppercase opacity-80 mb-1">
+                  지금 집중할 한 가지
+                </p>
+                <p className="text-[15px] font-medium leading-snug truncate">
+                  {activeAction.title}
+                </p>
+              </>
+            ) : (
+              <p className="text-[14px] leading-snug">
+                {week}주차로 들어왔어요. 아래에서 이번 주 액션을 확인하세요.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div
         className="rounded-2xl p-7 mb-14"
