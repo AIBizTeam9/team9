@@ -154,7 +154,7 @@ export default function QuizPage() {
               }}
             />
             <p className="text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              Reading your answer…
+              답변을 읽고 있어요…
             </p>
           </div>
         )}
@@ -320,7 +320,7 @@ export default function QuizPage() {
                 className="text-[11px] uppercase tracking-widest mb-2"
                 style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}
               >
-                You wrote
+                내가 쓴 답변
               </p>
               <p
                 className="text-[14px] leading-relaxed px-4 py-3 rounded-xl"
@@ -375,7 +375,7 @@ export default function QuizPage() {
             cursor: backDisabled ? 'default' : 'pointer',
           }}
         >
-          ← Back
+          ← 이전
         </button>
 
         {phase === 'followup' ? (
@@ -389,7 +389,7 @@ export default function QuizPage() {
               cursor: followUpCanAdvance ? 'pointer' : 'not-allowed',
             }}
           >
-            Next →
+            다음 →
           </button>
         ) : (
           <button
@@ -402,7 +402,7 @@ export default function QuizPage() {
               cursor: phase !== 'loading' && canAdvance ? 'pointer' : 'not-allowed',
             }}
           >
-            {index === total - 1 ? 'Generate my plan →' : 'Next →'}
+            {index === total - 1 ? '내 플랜 만들기 →' : '다음 →'}
           </button>
         )}
       </div>
