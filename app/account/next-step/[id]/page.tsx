@@ -14,6 +14,7 @@ import {
   getPlan,
   localDateKey,
   progressStats,
+  setPlanPublic,
   updatePlanProgress,
   upsertJournalEntry,
   type Journal,
@@ -51,6 +52,10 @@ export default function PlanDetailPage({
     "idle",
   );
   const [deleting, setDeleting] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -69,6 +74,7 @@ export default function PlanDetailPage({
       else {
         setPlan(detail);
         setProgress(detail.progress ?? {});
+        setIsPublic(detail.is_public ?? false);
       }
       setLoading(false);
     };
@@ -85,6 +91,38 @@ export default function PlanDetailPage({
       data.subscription.unsubscribe();
     };
   }, [router, id]);
+
+  const handleToggleShare = async () => {
+    if (!user || !plan || sharingBusy) return;
+    const next = !isPublic;
+    setSharingBusy(true);
+    setShareError(null);
+    // 낙관적 업데이트 — 실패하면 롤백.
+    setIsPublic(next);
+    const result = await setPlanPublic(user.id, plan.id, next);
+    setSharingBusy(false);
+    if (!result.ok) {
+      setIsPublic(!next);
+      setShareError(result.error || "공유 설정 변경 실패");
+    } else {
+      // 로컬 plan state도 새 값으로 갱신
+      setPlan((prev) => (prev ? { ...prev, is_public: next } : prev));
+      setLinkCopied(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!plan) return;
+    const url = `${window.location.origin}/share/${plan.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // clipboard 권한 거부 등 — fallback으로 prompt 노출
+      window.prompt("이 링크를 복사하세요:", url);
+    }
+  };
 
   const onDelete = async () => {
     if (!user || !plan) return;
@@ -217,6 +255,17 @@ export default function PlanDetailPage({
         >
           {formatFull(plan.created_at)}에 만들어진 플랜
         </p>
+
+        {/* 공유 컨트롤 — 토글 + 복사 링크. is_public=true일 때만 링크 노출. */}
+        <ShareControls
+          planId={plan.id}
+          isPublic={isPublic}
+          busy={sharingBusy}
+          error={shareError}
+          linkCopied={linkCopied}
+          onToggle={handleToggleShare}
+          onCopy={handleCopyLink}
+        />
 
         {/* Progress 헤더 — streak 칩 포함 */}
         <ProgressHeader plan={plan} progress={progress} saveState={saveState} />
@@ -714,5 +763,106 @@ function JournalRow({ date, entry }: { date: string; entry: JournalEntry }) {
         </div>
       )}
     </li>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * ShareControls — 공유 토글 + 링크 복사. 기본 비공개, 명시적으로 켜야 노출.
+ * ──────────────────────────────────────────────────────────── */
+
+function ShareControls({
+  planId,
+  isPublic,
+  busy,
+  error,
+  linkCopied,
+  onToggle,
+  onCopy,
+}: {
+  planId: string;
+  isPublic: boolean;
+  busy: boolean;
+  error: string | null;
+  linkCopied: boolean;
+  onToggle: () => void;
+  onCopy: () => void;
+}) {
+  return (
+    <div
+      className="rounded-2xl p-4 mb-6"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--line)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p
+            className="text-[11px] font-medium tracking-[0.08em] uppercase mb-1"
+            style={{ color: "var(--ink-3)" }}
+          >
+            공유
+          </p>
+          <p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            {isPublic
+              ? "이 플랜은 링크로 누구나 볼 수 있어요. 진행 상황과 저널은 비공개 그대로예요."
+              : "기본은 비공개. 켜면 링크로 누구나 읽을 수 있어요 (편집은 본인만)."}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isPublic}
+          aria-label={isPublic ? "공유 끄기" : "공유 켜기"}
+          onClick={onToggle}
+          disabled={busy}
+          className="shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50"
+          style={{
+            background: isPublic ? "var(--warm)" : "var(--line-2)",
+          }}
+        >
+          <span
+            className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+            style={{
+              transform: isPublic ? "translateX(22px)" : "translateX(2px)",
+            }}
+          />
+        </button>
+      </div>
+
+      {isPublic && (
+        <div
+          className="mt-3 pt-3 flex items-center justify-between gap-2 flex-wrap"
+          style={{ borderTop: "1px solid var(--line)" }}
+        >
+          <code
+            className="text-[12px] truncate"
+            style={{ color: "var(--ink-3)", maxWidth: "60%" }}
+          >
+            /share/{planId}
+          </code>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="text-[12px] font-medium px-3 py-1.5 rounded-full transition-opacity"
+            style={{
+              background: linkCopied ? "var(--green)" : "var(--ink)",
+              color: "var(--bg)",
+            }}
+          >
+            {linkCopied ? "✓ 복사됨" : "🔗 링크 복사"}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p
+          className="text-[11px] mt-2"
+          style={{ color: "var(--warm)" }}
+        >
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
