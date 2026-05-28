@@ -32,13 +32,13 @@ export default function NextStepLandingPage() {
           {t("landing.eyebrow")}
         </p>
 
-        {/* Headline */}
+        {/* Headline — maxWidth 720은 한국어 카피가 영어보다 살짝 길어 main에서 늘린 값 */}
         <h1
           className="font-serif text-center leading-[1.15] tracking-[-0.02em] mb-6"
           style={{
             color: "var(--ink)",
             fontSize: "clamp(42px, 7vw, 72px)",
-            maxWidth: "700px",
+            maxWidth: "720px",
           }}
         >
           {t("landing.headline.first")}
@@ -50,7 +50,7 @@ export default function NextStepLandingPage() {
 
         {/* Sub-copy */}
         <p
-          className="text-center leading-relaxed mb-12"
+          className="text-center leading-relaxed mb-4"
           style={{
             color: "var(--ink-3)",
             fontSize: "16px",
@@ -58,6 +58,18 @@ export default function NextStepLandingPage() {
           }}
         >
           {t("landing.subcopy")}
+        </p>
+
+        {/* Broad-engine framing (main에서 추가된 갈림길 예시) */}
+        <p
+          className="text-center mb-12"
+          style={{
+            color: "var(--ink-3)",
+            fontSize: "13.5px",
+            maxWidth: "460px",
+          }}
+        >
+          {t("landing.framing")}
         </p>
 
         {/* CTA */}

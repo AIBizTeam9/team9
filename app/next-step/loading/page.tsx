@@ -33,7 +33,12 @@ const PERSONA_BGS = ['var(--warm-soft)', 'var(--blue-soft)'] as const;
 export default function LoadingPage() {
   const router = useRouter();
   const called = useRef(false);
-  const [messages, setMessages] = useState(PERSONA_MESSAGES);
+  // 시작 시점에 어느 phase인지 한 번만 결정 (selectedPersonas 유무로). 이후 변경 X →
+  // setMessages를 effect 안에서 호출할 필요 없음.
+  const [messages] = useState<readonly string[]>(() => {
+    if (typeof window === 'undefined') return PERSONA_MESSAGES;
+    return sessionStorage.getItem('nextStep.selectedPersonas') ? PLAN_MESSAGES : PERSONA_MESSAGES;
+  });
   const [msgIndex, setMsgIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -45,15 +50,25 @@ export default function LoadingPage() {
     timestamp: string;
   } | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [selectedPersonasState, setSelectedPersonasState] = useState<Persona[] | null>(null);
+  // 선택된 페르소나는 mount 시 sessionStorage에서 1회 결정 — effect 안 setState 회피.
+  const [selectedPersonasState] = useState<Persona[] | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem('nextStep.selectedPersonas');
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return parsed as Persona[];
+    } catch {
+      return null;
+    }
+  });
   const [debateTurns, setDebateTurns] = useState<DebateTurn[]>([]);
   const [visibleTurns, setVisibleTurns] = useState(0);
 
   // Cycle through messages: fade out → swap text → fade in.
-  // Restarts when messages array switches (persona → plan phase).
+  // messages는 mount 시 1회 결정되어 변하지 않으므로 reset 로직은 불필요.
   useEffect(() => {
-    setMsgIndex(0);
-    setVisible(true);
     const id = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
@@ -85,8 +100,7 @@ export default function LoadingPage() {
     const rawSelectedPersonas = sessionStorage.getItem('nextStep.selectedPersonas');
 
     if (!rawSelectedPersonas) {
-      // First pass: generate 4 personas from quiz answers
-      setMessages(PERSONA_MESSAGES);
+      // First pass: generate 4 personas from quiz answers (messages는 lazy init에서 결정됨)
       fetch('/api/personas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,8 +140,7 @@ export default function LoadingPage() {
         router.replace('/next-step/quiz?error=1');
         return;
       }
-      setMessages(PLAN_MESSAGES);
-      setSelectedPersonasState(selectedPersonas as Persona[]);
+      // messages, selectedPersonasState 모두 lazy init에서 결정됨
 
       // 두 비동기 작업이 모두 끝나야 plan 페이지로 이동.
       //   1) generate-plan 응답이 도착 (plan 객체)

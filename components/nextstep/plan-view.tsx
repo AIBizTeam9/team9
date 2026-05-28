@@ -9,9 +9,9 @@ const EFFORT_STYLE: Record<
   PlanAction["effort"],
   { bg: string; color: string; label: string }
 > = {
-  small: { bg: "var(--green-soft)", color: "var(--green)", label: "small" },
-  medium: { bg: "var(--warm-soft)", color: "var(--warm)", label: "medium" },
-  large: { bg: "var(--blue-soft)", color: "var(--blue)", label: "large" },
+  small: { bg: "var(--green-soft)", color: "var(--green)", label: "가볍게" },
+  medium: { bg: "var(--warm-soft)", color: "var(--warm)", label: "보통" },
+  large: { bg: "var(--blue-soft)", color: "var(--blue)", label: "묵직" },
 };
 
 type Props = {
@@ -73,7 +73,7 @@ export default function PlanView({
           className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3"
           style={{ color: "var(--warm)" }}
         >
-          Core insight
+          핵심 통찰
         </p>
         <p
           className="font-serif leading-[1.4]"
@@ -107,7 +107,7 @@ export default function PlanView({
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-6"
             style={{ color: "var(--ink-3)" }}
           >
-            Recommended resources
+            추천 자료
           </p>
           <div className="flex flex-col gap-3">
             {plan.resources.map((r) => (
@@ -126,7 +126,7 @@ export default function PlanView({
             className="text-[11px] font-medium tracking-[0.08em] uppercase mb-4"
             style={{ color: "var(--warm)" }}
           >
-            Do this today
+            오늘 할 한 가지
           </p>
           <p
             className="font-serif leading-[1.4]"
@@ -160,7 +160,7 @@ function MonthSection({
           className="text-[11px] font-medium tracking-[0.08em] uppercase shrink-0"
           style={{ color: "var(--ink-3)" }}
         >
-          Month {month.month}
+          {month.month}개월차
         </span>
         <div
           className="flex-1 h-px"
@@ -253,7 +253,7 @@ function ActionCard({
               className="text-[11px] font-medium tabular-nums"
               style={{ color: "var(--ink-3)" }}
             >
-              Week {action.week}
+              {action.week}주차
             </span>
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
