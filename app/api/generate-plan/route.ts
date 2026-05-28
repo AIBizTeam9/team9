@@ -9,7 +9,8 @@ import {
 
 // 가장 비싼 라우트 (병렬 5개 Claude 호출). 가장 엄격하게 제한.
 const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 10 * 60 * 1000; // 10분
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 57
+
 
 // Claude 호출 전에 input 사이즈 가드. 모델별 max_tokens는 prompt에서 처리.
 const MAX_ANSWER_KEYS = 60;        // 퀴즈는 15문항 + follow-ups. 60이면 충분히 여유.
@@ -53,6 +54,7 @@ Writing rules:
 - theme: 4-8 words capturing this month's focus, distinct from other months.
 - 3-5 actions. Each must fit the user's stated weekly hours budget.
 - weeks: month 1 uses weeks 1-4, month 2 uses 5-8, month 3 uses 9-12.
+Use warm, conversational language. Avoid stiff or formal phrasing. Write like a supportive friend, not a consultant.
 
 Schema:
 {
