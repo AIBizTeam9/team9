@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Plan, PlanAction, PlanMonth, PlanResource } from "@/lib/types";
 import type { PlanProgress, PlanProgressEntry } from "@/lib/nextstep/db";
+import { currentWeek, isWithinPlan } from "@/lib/nextstep/current-week";
 import CalendarExportButton from "./calendar-export-button";
 
 const EFFORT_STYLE: Record<
@@ -46,6 +47,17 @@ export default function PlanView({
   startDate,
   planId,
 }: Props) {
+  // startDate가 있을 때만 "이번 주" 계산 가능. 플랜 윈도우(1-12) 밖이면 undefined로
+  // 떨어뜨려 ActionCard에서 하이라이트 안 함.
+  const week = startDate ? currentWeek(startDate, new Date()) : 0;
+  const activeWeek = isWithinPlan(week) ? week : undefined;
+
+  // 이번 주 액션 찾기 — 모든 month를 평탄화 후 week 매칭. 안 찾히면 배너 안 보임.
+  const activeAction =
+    activeWeek !== undefined
+      ? plan.months.flatMap((m) => m.actions).find((a) => a.week === activeWeek)
+      : undefined;
+
   return (
     <>
       <h1
@@ -61,6 +73,45 @@ export default function PlanView({
       >
         {plan.rationale}
       </p>
+
+      {/* 이번 주 배너 — startDate가 있고 플랜 윈도우 안에 있을 때만 표시.
+          액션이 매칭되면 제목까지, 매칭 안 되면 주 번호만. 사용자가 페이지를
+          열자마자 "지금 어디"를 0초에 알게 한다. */}
+      {activeWeek !== undefined && (
+        <div
+          className="rounded-2xl px-5 py-4 mb-10 flex items-center gap-4"
+          style={{
+            background: "var(--warm)",
+            color: "white",
+          }}
+        >
+          <div className="flex flex-col items-center justify-center shrink-0"
+               style={{ minWidth: 56 }}>
+            <span className="text-[10px] font-medium tracking-[0.08em] uppercase opacity-80">
+              이번 주
+            </span>
+            <span className="font-serif text-[22px] leading-none tabular-nums">
+              W{activeWeek}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            {activeAction ? (
+              <>
+                <p className="text-[11px] tracking-[0.04em] uppercase opacity-80 mb-1">
+                  지금 집중할 한 가지
+                </p>
+                <p className="text-[15px] font-medium leading-snug truncate">
+                  {activeAction.title}
+                </p>
+              </>
+            ) : (
+              <p className="text-[14px] leading-snug">
+                {week}주차로 들어왔어요. 아래에서 이번 주 액션을 확인하세요.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div
         className="rounded-2xl p-7 mb-14"
@@ -94,6 +145,7 @@ export default function PlanView({
             month={month}
             progress={progress}
             onProgressChange={onProgressChange}
+            activeWeek={activeWeek}
           />
         ))}
       </div>
@@ -148,10 +200,12 @@ function MonthSection({
   month,
   progress,
   onProgressChange,
+  activeWeek,
 }: {
   month: PlanMonth;
   progress?: PlanProgress;
   onProgressChange?: (week: number, next: PlanProgressEntry) => void;
+  activeWeek?: number;
 }) {
   return (
     <div>
@@ -184,6 +238,7 @@ function MonthSection({
                 ? (next) => onProgressChange(action.week, next)
                 : undefined
             }
+            isCurrentWeek={activeWeek === action.week}
           />
         ))}
       </div>
@@ -195,10 +250,12 @@ function ActionCard({
   action,
   entry,
   onChange,
+  isCurrentWeek = false,
 }: {
   action: PlanAction;
   entry: PlanProgressEntry;
   onChange?: (next: PlanProgressEntry) => void;
+  isCurrentWeek?: boolean;
 }) {
   const ef = EFFORT_STYLE[action.effort] ?? EFFORT_STYLE.medium;
   const interactive = !!onChange;
@@ -211,13 +268,20 @@ function ActionCard({
     onChange?.({ ...entry, note, updatedAt: new Date().toISOString() });
   };
 
+  // 이번 주 카드 강조: 완료된 카드(green)는 완료 색 유지, 미완료는 warm으로
+  // 강조. shadow도 한 단계 올려서 시각적으로 떠보이게.
+  const highlighted = isCurrentWeek && !entry.done;
+
   return (
     <div
       className="rounded-xl p-5"
       style={{
-        background: entry.done ? "var(--green-soft)" : "var(--bg-2)",
-        border: `1px solid ${entry.done ? "var(--green)" : "var(--line)"}`,
-        transition: "background 200ms, border 200ms",
+        background: entry.done ? "var(--green-soft)" : highlighted ? "var(--warm-soft)" : "var(--bg-2)",
+        border: `${highlighted ? 2 : 1}px solid ${
+          entry.done ? "var(--green)" : highlighted ? "var(--warm)" : "var(--line)"
+        }`,
+        boxShadow: highlighted ? "0 0 0 4px var(--warm-soft)" : "none",
+        transition: "background 200ms, border 200ms, box-shadow 200ms",
       }}
     >
       <div className="flex items-start gap-3">
@@ -255,6 +319,14 @@ function ActionCard({
             >
               {action.week}주차
             </span>
+            {isCurrentWeek && (
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={{ background: "var(--warm)", color: "white" }}
+              >
+                ★ 이번 주
+              </span>
+            )}
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{ background: ef.bg, color: ef.color }}
