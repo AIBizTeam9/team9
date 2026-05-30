@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
             client,
             MONTH_PROMPT,
             { ...baseInput, month: m },
-            1500,
+            4000,
             `month${m}`,
           ).then((r) => {
             emit({ type: "progress", section: `month${m}`, phase: "done" });
@@ -291,7 +291,7 @@ export async function POST(req: NextRequest) {
           client,
           RESOURCES_PROMPT,
           baseInput,
-          1200,
+          2000,
           "resources",
         ).then((r) => {
           // id → 검증된 라이브러리 항목으로 매핑. unknown id / 중복 / empty는
