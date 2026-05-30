@@ -65,6 +65,12 @@ export default function LoadingPage() {
   });
   const [debateTurns, setDebateTurns] = useState<DebateTurn[]>([]);
   const [visibleTurns, setVisibleTurns] = useState(0);
+  const [paused, setPaused] = useState(false);
+  // debateLoaded: fetch가 끝났음(성공/실패/빈 응답 무관). 마지막 버블 노출 시점은 visibleTurns로 계산.
+  const [debateLoaded, setDebateLoaded] = useState(false);
+  const [planResult, setPlanResult] = useState<unknown>(null);
+  // debateDone은 derived — set-state-in-effect 위반 회피 + 단일 진실 소스.
+  const debateDone = debateLoaded && visibleTurns >= debateTurns.length;
 
   // Cycle through messages: fade out → swap text → fade in.
   // messages는 mount 시 1회 결정되어 변하지 않으므로 reset 로직은 불필요.
@@ -78,6 +84,29 @@ export default function LoadingPage() {
     }, 2500);
     return () => clearInterval(id);
   }, [messages]);
+
+  // 토론 버블을 1.4초 간격으로 하나씩 노출. paused면 setTimeout 자체를 안 잡고,
+  // resume 시 dep 변화로 effect가 다시 돌면서 이어감. 마지막 버블에 도달하면
+  // 새 timeout을 안 잡고 끝남(debateDone은 derived라 자동으로 true가 됨).
+  // 주의: 마지막 '입력 중' 점(animate-pulse)은 CSS 애니메이션이라 paused와 무관하게 계속 뜀.
+  useEffect(() => {
+    if (debateTurns.length === 0) return;
+    if (visibleTurns >= debateTurns.length) return;
+    if (paused) return;
+    const id = setTimeout(() => {
+      setVisibleTurns((n) => n + 1);
+    }, 1400);
+    return () => clearTimeout(id);
+  }, [visibleTurns, debateTurns.length, paused]);
+
+  // 토론과 플랜 둘 다 준비됐고, 사용자가 paused가 아닐 때만 /plan으로 이동.
+  // paused 중이면 plan이 도착해도 사용자가 재생 누를 때까지 멈춰 있음.
+  useEffect(() => {
+    if (!planResult || !debateDone) return;
+    if (paused) return;
+    sessionStorage.setItem('nextStep.plan', JSON.stringify(planResult));
+    router.replace('/next-step/plan');
+  }, [planResult, debateDone, paused, router]);
 
   useEffect(() => {
     if (called.current) return;
@@ -142,20 +171,13 @@ export default function LoadingPage() {
       }
       // messages, selectedPersonasState 모두 lazy init에서 결정됨
 
-      // 두 비동기 작업이 모두 끝나야 plan 페이지로 이동.
-      //   1) generate-plan 응답이 도착 (plan 객체)
-      //   2) 토론 버블이 마지막까지 노출 완료
-      let planObjLocal: unknown = null;
-      let debateDone = false;
-      const tryNavigate = () => {
-        if (planObjLocal && debateDone) {
-          sessionStorage.setItem('nextStep.plan', JSON.stringify(planObjLocal));
-          router.replace('/next-step/plan');
-        }
-      };
+      // 두 비동기 작업이 모두 끝나야 plan 페이지로 이동:
+      //   1) generate-plan 응답 도착 → setPlanResult(plan)
+      //   2) debateLoaded=true && 마지막 버블 노출 → derived debateDone=true
+      // 두 조건을 합치는 건 위쪽 navigation effect 담당. paused 중이면 보류.
 
-      // 로딩 중 16턴 토론을 LLM(Haiku)로 받아 1.4초 간격으로 흘려보냄. ~22초.
-      // 실패해도 폴백을 받아 흐름은 깨지지 않음.
+      // 로딩 중 16턴 토론을 LLM(Haiku)로 받아 reveal effect가 1.4초 간격으로 흘려보냄. ~22초.
+      // 실패/빈 응답은 debateLoaded만 true로 둬서 buble 없이도 navigation은 진행되게 함.
       fetch('/api/persona-debate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -164,28 +186,16 @@ export default function LoadingPage() {
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { turns?: DebateTurn[] } | null) => {
           if (!data?.turns || data.turns.length === 0) {
-            // 토론 못 받으면 즉시 debateDone 처리
-            debateDone = true;
-            tryNavigate();
+            setDebateLoaded(true);
             return;
           }
+          // 첫 버블만 즉시 노출. 나머지는 위쪽 reveal effect가 paused 봐가며 진행.
           setDebateTurns(data.turns);
-          let i = 0;
           setVisibleTurns(1);
-          const interval = setInterval(() => {
-            i += 1;
-            if (i >= data.turns!.length) {
-              clearInterval(interval);
-              debateDone = true;
-              tryNavigate();
-              return;
-            }
-            setVisibleTurns(i + 1);
-          }, 1400);
+          setDebateLoaded(true);
         })
         .catch(() => {
-          debateDone = true;
-          tryNavigate();
+          setDebateLoaded(true);
         });
 
       (async () => {
@@ -268,9 +278,8 @@ export default function LoadingPage() {
             console.warn('[loading] plan received but done event missing — proceeding anyway');
           }
 
-          // 플랜 준비 완료 — 토론이 끝났으면 즉시 이동, 아니면 토론 끝날 때까지 대기.
-          planObjLocal = planObj;
-          tryNavigate();
+          // 플랜 준비 완료 — navigation effect가 debateDone && !paused 시점에 이동.
+          setPlanResult(planObj);
         } catch (err) {
           console.error('[loading] generate-plan failed:', {
             err,
@@ -454,6 +463,33 @@ export default function LoadingPage() {
       >
         {messages[msgIndex]}
       </p>
+
+      {/* Debate playback control — pause/resume + plan-ready hint */}
+      {debateTurns.length > 0 && (
+        <div className="w-full max-w-[520px] flex flex-col items-center gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setPaused((p) => !p)}
+            disabled={debateDone}
+            className="px-3 py-1 rounded-full text-[12px] transition-all"
+            style={{
+              background: paused ? 'var(--warm-soft)' : 'var(--bg-2)',
+              border: `1px solid ${paused ? 'var(--warm)' : 'var(--line-2)'}`,
+              color: debateDone ? 'var(--ink-3)' : paused ? 'var(--warm)' : 'var(--ink-2)',
+              fontWeight: paused ? 600 : 400,
+              opacity: debateDone ? 0.5 : 1,
+              cursor: debateDone ? 'default' : 'pointer',
+            }}
+          >
+            {paused ? '▶ 재생' : '⏸ 일시정지'}
+          </button>
+          {paused && planResult != null && !debateDone && (
+            <p className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+              플랜이 준비됐어요 — 재생을 눌러 계속
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Debate bubbles — shown progressively while plan generates */}
       {debateTurns.length > 0 && (
