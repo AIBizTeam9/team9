@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Inter, Instrument_Serif, Noto_Sans_KR } from "next/font/google";
 import Link from "next/link";
 import AuthButton from "@/components/auth-button";
 import LangToggle from "@/components/lang-toggle";
@@ -19,6 +19,13 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+const notoSansKR = Noto_Sans_KR({
+  variable: "--font-noto-kr",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Next Step in Life",
   description: "AI가 만들어주는 두 개의 미래 — 나의 가능성을 A/B 테스트하세요",
@@ -35,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${inter.variable} ${instrumentSerif.variable} h-full antialiased`}>
+    <html lang="ko" className={`${inter.variable} ${instrumentSerif.variable} ${notoSansKR.variable} h-full antialiased`}>
       <body className="min-h-full">
         <LocaleProvider>
           <nav className="sticky top-0 z-50 bg-[var(--bg)]/90 backdrop-blur-sm border-b border-[var(--line)]">
