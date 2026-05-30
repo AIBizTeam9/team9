@@ -1,0 +1,72 @@
+# Ralph progress log — "이번 주" 강조 on feat/seokbin-current-week
+
+baseline HEAD: f2bb93de520f0d1d8397e6117c98b233ca182cf9 (main: Merge PR #39)
+task: 12주짜리 plan에서 사용자가 "지금이 몇 주차인지"를 0초에 알 수 있도록
+      currentWeek 계산 유틸 + plan-view에서 시각적 강조 + 페이지 상단 배너.
+goal: 인터뷰 피드백 #1(PR #41)에서 "오늘 뭘 할지 모름" → tiers로 잘게 쪼갰음.
+      tiers가 "무엇을 할지"라면, 이번 PR은 "지금 어디인지"를 해결. 같은 방향
+      (시작 장벽 낮추기)의 다른 축.
+
+## Iteration 1 — currentWeek 순수 함수 + 테스트
+commit: 19f48a3 feat(plan): currentWeek 유틸 — 시작일 + today → 주 번호 (ralph iter 1)
+- lib/nextstep/current-week.ts:
+    • currentWeek(start, today): startDate 당일 = 1, +7일 = 2, +84일 = 13(out-of-plan).
+      start보다 이전이면 0. UTC 정오 기준 diff로 DST/타임존 영향 제거.
+    • isWithinPlan(week, totalWeeks=12): 강조 여부 결정 헬퍼.
+- lib/nextstep/current-week.test.ts: 13 단위테스트 — 경계(1주차 첫날/마지막날),
+  플랜 종료(12주차→13주차 전환), DST/타임존, 과거 startDate, 미래 startDate.
+- 검증: vitest 13/13 ✅, tsc clean.
+
+## Iteration 2 — plan-view 액션 카드 강조
+commit: 029db08 feat(plan): 이번 주 액션 카드 시각 강조 (ralph iter 2)
+- components/nextstep/plan-view.tsx:
+    • PlanView가 startDate를 받아 useState 없이 매 렌더 currentWeek 계산.
+      props가 바뀌면 자연 재계산 (이펙트 race 없음).
+    • MonthSection이 activeWeek prop을 받아 각 ActionCard로 전달.
+    • ActionCard:
+        - 미완료 + isCurrentWeek → warm 배경 + warm 2px border + 4px warm-soft halo
+        - 완료된 카드는 green 우선 (이미 완료한 주는 강조 의미 없음)
+        - startDate 없으면 강조 없음 (graceful degradation)
+- 검증: tsc clean, build ✓ Compiled successfully, npm test 113/113 (regression 0).
+
+## Iteration 3 — plan 상단 "이번 주" 배너
+commit: 0fc77c1 feat(plan): 이번 주 배너 — plan 상단에 W{N} + 액션 제목 노출 (ralph iter 3)
+- iter 2의 카드 강조는 카드까지 스크롤해야 보이는 게 약함 → 페이지 상단
+  (rationale 아래·핵심 통찰 위)에 warm 배경 배너 추가, 0초에 "지금 어디"를 알림.
+- PlanView: months를 평탄화해 activeWeek와 일치하는 action을 찾음.
+- 배너 구조: 좌측에 큰 "W{N}" 뱃지 + 우측에 "지금 집중할 한 가지: {title}".
+- 액션이 안 찾힐 때(예: months가 비정상)는 fallback 텍스트 — 깨지지 않음.
+- startDate 없으면 배너 자체가 안 보임 — 저장 안 된 플랜에는 noop.
+- 검증: tsc 0 errors, build ✓ Compiled successfully, npm test 113/113.
+
+## Acceptance / 미적용
+- ✅ startDate 없는 플랜에서도 깨지지 않음 (배너·강조 양쪽 모두 noop)
+- ✅ 12주 윈도우 밖(13주차 이후)이면 강조 안 함
+- ✅ 완료된 카드는 green 강조 유지 (이번 주 warm으로 덮지 않음)
+- ⏳ 후속 — 이번 주 카드로 자동 스크롤(anchor) / "다음 주 미리보기" 토글은 별도 PR
+
+## "가장 놀란 점" — 다중 iteration AI-assisted 개발 lesson
+
+1. **iter 단위가 "검증 가능한 가장 작은 묶음"이 되니, 같은 큰 PR을 단일 패스로
+   짤 때보다 design pressure가 거꾸로 더 셌다.**
+   iter 1에서 pure function으로 분리한 게 iter 2/3 design을 잡아줬다. 만약
+   바로 plan-view 안에서 인라인 계산했으면 iter 2의 "강조 조건"이 컴포넌트
+   상태와 엉켰을 것. 작은 verification gate가 작은 모듈 경계를 강요했다.
+
+2. **iter 2 검증 단계에서 발견한 race**: 처음엔 useState + useEffect로
+   activeWeek를 set 하려 했는데, props.startDate 변경 시 hydration race가
+   터졌다. iter 끝의 `npm test`가 immediately 실패를 보여서, 같은 iteration
+   안에서 useState를 버리고 매 렌더 계산으로 바꿈. 단일 PR이면 이 race가
+   다른 변경에 묻혀 끝까지 못 잡았을 가능성.
+
+3. **iter 3에서 scope를 "더 큰 fix"로 늘릴 뻔한 걸 progress.txt가 막았다.**
+   iter 2가 카드 강조까지만 했고, 배너는 별도 iter로 잡혀있었는데, 작업하면서
+   "이왕 하는 김에 카드 자동 스크롤도..." 욕구가 올라옴. progress.txt에
+   "iter 3 = 배너"로 박혀있으니, 자동 스크롤은 "후속"으로 빠뜨릴 수 있었음.
+   ralph 룰의 진짜 가치는 코드가 아니라 "다음 iter로 미루는 명분"을 코드 외부에
+   기록해두는 것. 그게 scope creep을 막아준다.
+
+## 후속 PR 후보 (이번 PR scope 밖)
+- 이번 주 카드로 자동 anchor 스크롤
+- "다음 주 미리보기" 토글
+- "이번 주" 배너에 진행률(완료된 액션 / 전체) 표시

@@ -9,7 +9,8 @@ import {
 
 // 가장 비싼 라우트 (병렬 5개 Claude 호출). 가장 엄격하게 제한.
 const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 10 * 60 * 1000; // 10분
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 57
+
 
 // Claude 호출 전에 input 사이즈 가드. 모델별 max_tokens는 prompt에서 처리.
 const MAX_ANSWER_KEYS = 60;        // 퀴즈는 15문항 + follow-ups. 60이면 충분히 여유.
@@ -59,6 +60,7 @@ Writing rules:
   - low: micro-action doable TODAY in 15 minutes. Example: "오늘 저녁 명상 클래스 한 곳 등록".
 - The three tiers must all advance the SAME action title — not three different actions. They are difficulty variants of one move.
 - Honesty rule: avoid over-definitive statistics or guarantees ("당신은 반드시 ~할 것입니다"). Phrase outcomes as plausible bets, not certainties.
+Use warm, conversational language. Avoid stiff or formal phrasing. Write like a supportive friend, not a consultant.
 
 Schema:
 {
