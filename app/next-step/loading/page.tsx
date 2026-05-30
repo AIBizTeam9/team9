@@ -115,14 +115,9 @@ export default function LoadingPage() {
     return () => clearTimeout(id);
   }, [visibleTurns, debateTurns.length, paused]);
 
-  // 토론과 플랜 둘 다 준비됐고, 사용자가 paused가 아닐 때만 /plan으로 이동.
-  // paused 중이면 plan이 도착해도 사용자가 재생 누를 때까지 멈춰 있음.
-  useEffect(() => {
-    if (!planResult || !debateDone) return;
-    if (paused) return;
-    sessionStorage.setItem('nextStep.plan', JSON.stringify(planResult));
-    router.replace('/next-step/plan');
-  }, [planResult, debateDone, paused, router]);
+  // Auto-navigate 제거됨 — 토론 끝나는 순간 페이지가 튕기던 UX 문제 때문.
+  // 플랜이 준비되면 아래 "플랜 보기 →" 버튼이 표시되어 사용자가 명시적으로 이동.
+  // sessionStorage 저장은 onClick에서 처리한다 (한 번만 쓰면 충분).
 
   // 사용자 끼어들기 핸들러. 가드는 입력 카드 게이트와 동일 — 더블클릭 등 race에서도
   // isInjecting을 함수 진입에서 한 번 더 체크해서 중복 호출 차단.
@@ -593,11 +588,7 @@ export default function LoadingPage() {
           >
             {paused ? '▶ 재생' : '⏸ 일시정지'}
           </button>
-          {paused && planResult != null && !debateDone && (
-            <p className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
-              플랜이 준비됐어요 — 재생을 눌러 계속
-            </p>
-          )}
+          {/* "플랜 준비됐어요" 힌트 제거 — 아래 "플랜 보기 →" 버튼이 같은 역할을 대체. */}
         </div>
       )}
 
@@ -770,6 +761,36 @@ export default function LoadingPage() {
               </div>
             );
           })()}
+
+          {/* 플랜 보기 — 명시적 진입. paused/끝남 + planResult 있을 때만. */}
+          {planResult != null && (debateDone || paused) && (
+            <div className="flex justify-center mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem(
+                    'nextStep.plan',
+                    JSON.stringify(planResult),
+                  );
+                  router.replace('/next-step/plan');
+                }}
+                className="px-5 py-2 rounded-full text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ background: 'var(--warm)' }}
+              >
+                플랜 보기 →
+              </button>
+            </div>
+          )}
+
+          {/* 토론은 끝났지만 plan fetch가 아직 — 사용자가 빈 화면이라고 오해하지 않도록. */}
+          {planResult == null && debateDone && (
+            <p
+              className="text-[11px] text-center mt-4"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              플랜을 준비하고 있어요…
+            </p>
+          )}
         </div>
       )}
     </div>
