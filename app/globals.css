@@ -38,7 +38,7 @@
   --color-border: var(--border);
   --color-card: var(--card);
   --font-sans: var(--font-inter), var(--font-noto-kr), 'Inter', 'Noto Sans KR', system-ui, sans-serif;
-  --font-serif: var(--font-instrument-serif), 'Instrument Serif', serif;
+  --font-serif: var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
 }
 
 body {
@@ -52,7 +52,7 @@ body {
 }
 
 .font-serif {
-  font-family: var(--font-instrument-serif), 'Instrument Serif', serif;
+  font-family: var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
 }
 
 ::-webkit-scrollbar { width: 6px; }
