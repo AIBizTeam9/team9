@@ -5,6 +5,14 @@ export type PlanAction = {
   title: string;
   why: string;
   effort: 'small' | 'medium' | 'large';
+  // 난이도 3단계 — 선택적. 모델이 채우지 않으면 UI는 title만 표시.
+  // 피드백 #18 (실행 장벽 너무 높음) 대응 — 사용자가 자신의 현재 에너지에 맞는
+  // 버전을 고를 수 있게.
+  tiers?: {
+    high: string;   // 도약형 (예: 휴직 후 항공권 예매)
+    medium: string; // 중간형 (예: 금요일 반차)
+    low: string;    // 마이크로 (오늘 안에 할 수 있는 한 가지)
+  };
 };
 
 export type PlanMonth = {
