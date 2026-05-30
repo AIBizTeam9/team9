@@ -30,6 +30,11 @@ function DebugRow({ label, value }: { label: string; value: string }) {
 const PERSONA_ACCENTS = ['var(--warm)', 'var(--blue)'] as const;
 const PERSONA_BGS = ['var(--warm-soft)', 'var(--blue-soft)'] as const;
 
+// 사용자 끼어들기 한도 + 응답 길이.
+const MAX_INJECTIONS = 3;
+const INJECT_TEXT_CAP = 100;
+const CONTINUE_LENGTH = 4;
+
 export default function LoadingPage() {
   const router = useRouter();
   const called = useRef(false);
@@ -72,6 +77,17 @@ export default function LoadingPage() {
   // debateDone은 derived — set-state-in-effect 위반 회피 + 단일 진실 소스.
   const debateDone = debateLoaded && visibleTurns >= debateTurns.length;
 
+  // 사용자 끼어들기 상태. userInjectedIndices는 debateTurns 인덱스 중 사용자가 적은 것.
+  // 와이어 포맷에 source 필드 안 더하고 클라이언트 전용 Set으로 관리.
+  // isInjecting은 race guard — fetch 진행 중 다시 보내기 클릭 무효화.
+  // 기본 injectAs는 'A'로 고정 — 브리프의 "마지막 발화자로 default" 부분은 v1에서 생략 (사용자가 토글).
+  const [userInjectedIndices, setUserInjectedIndices] = useState<Set<number>>(new Set());
+  const [injectionCount, setInjectionCount] = useState(0);
+  const [isInjecting, setIsInjecting] = useState(false);
+  const [injectAs, setInjectAs] = useState<'A' | 'B'>('A');
+  const [injectText, setInjectText] = useState('');
+  const [injectError, setInjectError] = useState<string | null>(null);
+
   // Cycle through messages: fade out → swap text → fade in.
   // messages는 mount 시 1회 결정되어 변하지 않으므로 reset 로직은 불필요.
   useEffect(() => {
@@ -107,6 +123,100 @@ export default function LoadingPage() {
     sessionStorage.setItem('nextStep.plan', JSON.stringify(planResult));
     router.replace('/next-step/plan');
   }, [planResult, debateDone, paused, router]);
+
+  // 사용자 끼어들기 핸들러. 가드는 입력 카드 게이트와 동일 — 더블클릭 등 race에서도
+  // isInjecting을 함수 진입에서 한 번 더 체크해서 중복 호출 차단.
+  // 실패 시 사용자 turn까지 rollback해서 retry가 깔끔하게 같은 상태에서 시작.
+  async function handleInject() {
+    if (isInjecting) return;
+    if (!paused || debateDone) return;
+    if (injectionCount >= MAX_INJECTIONS) return;
+    if (!selectedPersonasState || selectedPersonasState.length < 2) return;
+    const text = injectText.trim();
+    if (!text) return;
+
+    const personaA = selectedPersonasState[0];
+    const personaB = selectedPersonasState[1];
+    const speakerName = injectAs === 'A' ? personaA.name : personaB.name;
+
+    // mid-debate 끼어들기면 노출 안 된 미래 턴은 더 이상 분기와 일치 X — 잘라낸다.
+    const preInjectTurns = debateTurns.slice(0, visibleTurns);
+    const userTurn = { speaker: speakerName, content: text };
+    const turnsAfterInject = [...preInjectTurns, userTurn];
+    const userTurnIndex = preInjectTurns.length;
+
+    // 옵티미스틱 append — 사용자 발언을 즉시 노출. API 결과는 fetch 끝나면 추가.
+    setDebateTurns(turnsAfterInject);
+    setUserInjectedIndices((prev) => new Set([...prev, userTurnIndex]));
+    setVisibleTurns(userTurnIndex + 1);
+    setIsInjecting(true);
+    setInjectError(null);
+
+    let answersForApi: Record<string, unknown> = {};
+    try {
+      const raw = sessionStorage.getItem('nextStep.answers');
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          answersForApi = parsed as Record<string, unknown>;
+        }
+      }
+    } catch {
+      /* answers 없어도 API는 받아줌 */
+    }
+
+    const rollback = () => {
+      setDebateTurns(preInjectTurns);
+      setUserInjectedIndices((prev) => {
+        const next = new Set(prev);
+        next.delete(userTurnIndex);
+        return next;
+      });
+      setVisibleTurns(userTurnIndex);
+    };
+
+    try {
+      const res = await fetch('/api/persona-debate-continue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personaA,
+          personaB,
+          answers: answersForApi,
+          turnsSoFar: turnsAfterInject,
+          userSpokeAs: injectAs,
+          continueLength: CONTINUE_LENGTH,
+        }),
+      });
+
+      if (!res.ok) {
+        // 502는 strict-drift gate 발화 — 모델이 잘못 응답해서 우리가 거절. 재시도 가능.
+        // 429는 rate limit. 그 외는 일반 네트워크 에러.
+        if (res.status === 502) {
+          setInjectError('응답을 생성하지 못했어요 — 다시 시도해 주세요');
+        } else if (res.status === 429) {
+          const body = (await res.json().catch(() => ({}))) as { retryAfterSec?: number };
+          setInjectError(`요청이 너무 많아요 — 약 ${body.retryAfterSec ?? 60}초 후 다시 시도`);
+        } else {
+          setInjectError('네트워크 오류 — 다시 시도해 주세요');
+        }
+        rollback();
+        return;
+      }
+
+      const data = (await res.json()) as { turns: { speaker: string; content: string }[] };
+      // 성공 시: API 응답 turns를 debateTurns에 append. visibleTurns는 그대로 둬서
+      // 사용자가 재생 누를 때 reveal effect가 turns를 하나씩 노출.
+      setDebateTurns([...turnsAfterInject, ...data.turns]);
+      setInjectionCount((c) => c + 1);
+      setInjectText('');
+    } catch {
+      setInjectError('네트워크 오류 — 다시 시도해 주세요');
+      rollback();
+    } finally {
+      setIsInjecting(false);
+    }
+  }
 
   useEffect(() => {
     if (called.current) return;
@@ -491,6 +601,96 @@ export default function LoadingPage() {
         </div>
       )}
 
+      {/* Injection card — paused + 진행 중 + cap 미달 + 전송 중 X 일 때만. */}
+      {debateTurns.length > 0 &&
+        paused &&
+        !debateDone &&
+        injectionCount < MAX_INJECTIONS &&
+        !isInjecting &&
+        selectedPersonasState &&
+        selectedPersonasState.length >= 2 && (
+          <div
+            className="w-full max-w-[520px] rounded-2xl p-4 mb-3"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)' }}
+          >
+            <p
+              className="text-[11px] font-medium tracking-[0.08em] uppercase mb-3"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              이 토론에 끼어들기
+            </p>
+
+            {/* A/B 토글 — 사용자가 어느 페르소나로 발화할지 선택. */}
+            <div className="flex gap-2 mb-3">
+              {([0, 1] as const).map((i) => {
+                const persona = selectedPersonasState[i];
+                const value: 'A' | 'B' = i === 0 ? 'A' : 'B';
+                const selected = injectAs === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setInjectAs(value)}
+                    className="flex-1 px-3 py-2 rounded-xl text-[12px] transition-all"
+                    style={{
+                      background: selected ? PERSONA_BGS[i] : 'var(--bg)',
+                      border: `1px solid ${selected ? PERSONA_ACCENTS[i] : 'var(--line-2)'}`,
+                      color: selected ? PERSONA_ACCENTS[i] : 'var(--ink-2)',
+                      fontWeight: selected ? 600 : 400,
+                    }}
+                  >
+                    {persona.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <textarea
+              value={injectText}
+              onChange={(e) => setInjectText(e.target.value.slice(0, INJECT_TEXT_CAP))}
+              placeholder="여기에 끼어들어 보세요…"
+              rows={2}
+              className="w-full px-3 py-2 rounded-xl text-[13px] resize-none outline-none mb-2"
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--line-2)',
+                color: 'var(--ink)',
+              }}
+            />
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                {injectText.length} / {INJECT_TEXT_CAP} · {injectionCount} / {MAX_INJECTIONS}
+              </span>
+              <button
+                type="button"
+                onClick={handleInject}
+                disabled={injectText.trim().length === 0}
+                className="px-3 py-1.5 rounded-full text-[12px] font-semibold text-white transition-all"
+                style={{
+                  background: injectText.trim().length > 0 ? 'var(--accent)' : 'var(--line)',
+                  cursor: injectText.trim().length > 0 ? 'pointer' : 'not-allowed',
+                }}
+              >
+                보내기
+              </button>
+            </div>
+
+            {injectError && (
+              <p className="text-[11px] mt-2" style={{ color: 'var(--warm)' }}>
+                {injectError}
+              </p>
+            )}
+          </div>
+        )}
+
+      {/* Cap 도달 — 카드 자리에 작은 캡션. */}
+      {debateTurns.length > 0 && paused && !debateDone && injectionCount >= MAX_INJECTIONS && (
+        <p className="text-[11px] mb-3" style={{ color: 'var(--ink-3)' }}>
+          최대 {MAX_INJECTIONS}번까지 참여할 수 있어요
+        </p>
+      )}
+
       {/* Debate bubbles — shown progressively while plan generates */}
       {debateTurns.length > 0 && (
         <div
@@ -500,6 +700,7 @@ export default function LoadingPage() {
           {debateTurns.slice(0, visibleTurns).map((turn, i) => {
             const idx = personaIndex(turn.speaker);
             const isLeft = idx === 0;
+            const isUserInjected = userInjectedIndices.has(i);
             return (
               <div
                 key={i}
@@ -508,19 +709,30 @@ export default function LoadingPage() {
               >
                 <div className="max-w-[78%]">
                   <p
-                    className="text-[10px] mb-1 px-2"
+                    className="text-[10px] mb-1 px-2 flex items-center gap-1.5"
                     style={{
                       color: PERSONA_ACCENTS[idx % 2],
-                      textAlign: isLeft ? 'left' : 'right',
+                      justifyContent: isLeft ? 'flex-start' : 'flex-end',
                     }}
                   >
-                    {turn.speaker}
+                    <span>{turn.speaker}</span>
+                    {isUserInjected && (
+                      <span
+                        className="px-1.5 py-0.5 rounded-full text-[9px]"
+                        style={{ background: 'var(--accent-2)', color: 'var(--ink-2)' }}
+                      >
+                        당신
+                      </span>
+                    )}
                   </p>
                   <div
                     className="rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed"
                     style={{
                       background: PERSONA_BGS[idx % 2],
                       color: 'var(--ink)',
+                      border: isUserInjected
+                        ? `1.5px dashed ${PERSONA_ACCENTS[idx % 2]}`
+                        : 'none',
                     }}
                   >
                     {turn.content}
@@ -529,31 +741,35 @@ export default function LoadingPage() {
               </div>
             );
           })}
-          {/* '입력 중' 인디케이터 — 다음 차례 페르소나 표시 */}
-          {visibleTurns < debateTurns.length && (
-            <div
-              className={`flex ${
-                personaIndex(debateTurns[visibleTurns].speaker) === 0
-                  ? 'justify-start'
-                  : 'justify-end'
-              }`}
-            >
-              <div
-                className="rounded-full px-3 py-2 text-[12px] flex gap-1"
-                style={{
-                  background:
-                    PERSONA_BGS[
-                      personaIndex(debateTurns[visibleTurns].speaker) % 2
-                    ],
-                  color: 'var(--ink-3)',
-                }}
-              >
-                <span className="animate-pulse">·</span>
-                <span className="animate-pulse" style={{ animationDelay: '0.2s' }}>·</span>
-                <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>·</span>
+          {/* '입력 중' 인디케이터 — reveal 대기 중인 다음 페르소나 OR 사용자 끼어들기 응답 중 OTHER 페르소나. */}
+          {(isInjecting || visibleTurns < debateTurns.length) && (() => {
+            let nextSpeaker = '';
+            if (isInjecting && selectedPersonasState && selectedPersonasState.length >= 2) {
+              // 사용자가 A로 발화 → B가 응답 중 (반대 페르소나가 thinking).
+              nextSpeaker =
+                injectAs === 'A'
+                  ? selectedPersonasState[1].name
+                  : selectedPersonasState[0].name;
+            } else if (debateTurns[visibleTurns]) {
+              nextSpeaker = debateTurns[visibleTurns].speaker;
+            }
+            const idx = personaIndex(nextSpeaker);
+            return (
+              <div className={`flex ${idx === 0 ? 'justify-start' : 'justify-end'}`}>
+                <div
+                  className="rounded-full px-3 py-2 text-[12px] flex gap-1"
+                  style={{
+                    background: PERSONA_BGS[idx % 2],
+                    color: 'var(--ink-3)',
+                  }}
+                >
+                  <span className="animate-pulse">·</span>
+                  <span className="animate-pulse" style={{ animationDelay: '0.2s' }}>·</span>
+                  <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>·</span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>
