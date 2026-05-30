@@ -38,7 +38,23 @@
   --color-border: var(--border);
   --color-card: var(--card);
   --font-sans: var(--font-inter), var(--font-noto-kr), 'Inter', 'Noto Sans KR', system-ui, sans-serif;
-  --font-serif: var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
+  --font-serif: 'DigitSans', var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
+}
+
+/* 디지트 sans-serif 강제 — Instrument Serif는 0-9 글리프도 display-serif라
+ * Korean(=Noto Sans KR) 본문과 한 줄에 섞이면 시각 충돌이 큼. unicode-range로
+ * 숫자/마침표/쉼표/콜론만 cascade 맨 앞으로 끌고, 나머지 라틴 글리프는 그대로
+ * Instrument Serif가 받음. src는 local()만 써서 추가 네트워크 비용 0. */
+@font-face {
+  font-family: 'DigitSans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: local('Noto Sans KR'), local('NotoSansKR-Regular'),
+       local('Apple SD Gothic Neo'), local('AppleGothic'),
+       local('Malgun Gothic'),
+       local('Helvetica Neue'), local('Helvetica'), local('Arial');
+  unicode-range: U+0030-0039, U+002E, U+002C, U+003A;
 }
 
 body {
@@ -52,7 +68,7 @@ body {
 }
 
 .font-serif {
-  font-family: var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
+  font-family: 'DigitSans', var(--font-instrument-serif), var(--font-noto-kr), 'Instrument Serif', 'Noto Sans KR', serif;
 }
 
 ::-webkit-scrollbar { width: 6px; }
