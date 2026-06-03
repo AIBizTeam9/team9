@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useLocale, type DictKey } from "@/lib/i18n";
 
@@ -62,7 +63,7 @@ export default function NextStepLandingPage() {
 
         {/* Broad-engine framing (main에서 추가된 갈림길 예시) */}
         <p
-          className="text-center mb-12"
+          className="text-center mb-8"
           style={{
             color: "var(--ink-3)",
             fontSize: "13.5px",
@@ -71,6 +72,11 @@ export default function NextStepLandingPage() {
         >
           {t("landing.framing")}
         </p>
+
+        {/* Privacy reassurance — claims verified against current Supabase RLS,
+            Anthropic API tier, codebase logging, and analytics deps. Collapsed
+            default keeps the CTA above the fold on 1366×768. */}
+        <PrivacyReassurance />
 
         {/* CTA */}
         <Link
@@ -135,6 +141,81 @@ export default function NextStepLandingPage() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function PrivacyReassurance() {
+  const [expanded, setExpanded] = useState(false);
+  const bullets = [
+    "저장된 플랜과 일일 저널은 본인 계정으로 로그인한 경우에만 보입니다",
+    "Supabase에 저장되며, 저장된 데이터는 암호화됩니다",
+    "AI 응답 생성을 위해 Anthropic API로 전달되며, Anthropic 상용 약관상 모델 학습에 사용되지 않습니다",
+    "답변 본문은 서버 로그에 기록되지 않으며, 분석·광고용 외부 추적기를 사용하지 않습니다",
+    "저장된 플랜은 계정 페이지에서 언제든 삭제하실 수 있습니다",
+  ];
+
+  return (
+    <div
+      className="w-full rounded-2xl mb-10 overflow-hidden"
+      style={{
+        maxWidth: "460px",
+        background: "var(--warm-soft)",
+        border: "1px solid var(--warm)",
+        // 한국어가 단어 경계에서 깨지도록.
+        wordBreak: "keep-all",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls="privacy-reassurance-body"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-opacity hover:opacity-80"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+          <span aria-hidden>🔒</span>
+          답변은 안전하게 보관됩니다
+        </span>
+        <span
+          className="text-[12px] shrink-0"
+          style={{ color: "var(--warm)" }}
+        >
+          {expanded ? "접기 ↑" : "자세히 보기 →"}
+        </span>
+      </button>
+
+      {expanded && (
+        <div
+          id="privacy-reassurance-body"
+          className="px-4 pb-4 pt-1"
+        >
+          <p
+            className="text-[12.5px] leading-relaxed mb-3"
+            style={{ color: "var(--ink-2)" }}
+          >
+            답변이 사용자의 깊은 고민이라는 걸 알아요. 그래서:
+          </p>
+          <ul className="flex flex-col gap-2 mb-3">
+            {bullets.map((b) => (
+              <li
+                key={b}
+                className="flex gap-2 text-[12.5px] leading-relaxed"
+                style={{ color: "var(--ink-2)" }}
+              >
+                <span aria-hidden style={{ color: "var(--warm)" }}>•</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+          <p
+            className="text-[12.5px] leading-relaxed italic"
+            style={{ color: "var(--ink-3)" }}
+          >
+            마음 편히 솔직하게 답해 주세요 — 그래야 더 잘 도와드릴 수 있어요.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
